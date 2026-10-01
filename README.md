@@ -2,7 +2,7 @@
 
 Case management for a Brazilian law office. The secretary registers client companies and lawyers and assigns the cases, each lawyer works on the cases in their name, and the people at each client company follow their own cases. A FastAPI service owns the data and every permission check; a Next.js app is the interface.
 
-**Live demo:** [casedesk.joaosantaniello.com](https://casedesk.joaosantaniello.com). Pick a role on the sign in page; the fictional data resets every day. The API and its Swagger UI are public at [case-desk-api.vercel.app/docs](https://case-desk-api.vercel.app/docs).
+**Live demo:** [casedesk.joaosantaniello.com](https://casedesk.joaosantaniello.com). Pick a role on the sign in page; the fictional data resets every day. The API and its Swagger UI are public at [api.casedesk.joaosantaniello.com/docs](https://api.casedesk.joaosantaniello.com/docs).
 
 **Design:** [docs/TDD.md](docs/TDD.md) covers the architecture, data model, authentication, the permission rules, the demo mode, deployment and testing.
 
