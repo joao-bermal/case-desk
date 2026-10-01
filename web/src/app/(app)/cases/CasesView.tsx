@@ -27,10 +27,13 @@ import { createCase, deleteCases, patchCase } from '@/actions/cases';
 import { PageHeader, StatusChip } from '@/components/common';
 import { ActionButton, ActionForm, ConfirmDialog, FormDialog } from '@/components/forms';
 import { GridToolbar } from '@/components/GridToolbar';
+import { useLocale } from '@/components/LocaleProvider';
 import { useNotify } from '@/components/Notifier';
+import { areaLabel, common, messages, statusLabel } from '@/content/common';
+import { casesCopy } from '@/content/pages';
 import { gridLocale } from '@/theme';
 import type { CaseItem, CaseStatus, Role, Schemas } from '@/lib/api/client';
-import { AREA_LABEL, AREAS, formatCnpj, formatDateTime, formatPhone, STATUS_LABEL, STATUSES } from '@/lib/format';
+import { AREAS, formatCnpj, formatDateTime, formatPhone, STATUSES } from '@/lib/format';
 
 import { CaseFields, type CompanyOption, type LawyerOption } from './CaseFields';
 
@@ -107,6 +110,8 @@ export function CasesView({
 }) {
   const router = useRouter();
   const notify = useNotify();
+  const locale = useLocale();
+  const t = casesCopy[locale];
   const isStaff = role !== 'client';
   const isSecretary = role === 'secretary';
 
@@ -157,37 +162,37 @@ export function CasesView({
       for (const field of EDITABLE) if (newRow[field] !== oldRow[field]) changes[field] = newRow[field];
       if (Object.keys(changes).length === 0) return oldRow;
       const result = await patchCase(newRow.id, changes as Schemas['CaseUpdate']);
-      if (!result.row) throw new Error(result.error ?? 'Não foi possível salvar.');
-      notify('Processo atualizado.');
+      if (!result.row) throw new Error(result.error ?? messages[locale].notSaved);
+      notify(messages[locale].caseSaved);
       return toRow(result.row);
     },
-    [notify],
+    [locale, notify],
   );
 
   const columns = useMemo<GridColDef<Row>[]>(() => {
     const list: (GridColDef<Row> | false)[] = [
-      { field: 'id', headerName: '#', width: 70, type: 'number', align: 'left', headerAlign: 'left' },
-      { field: 'title', headerName: 'Processo', flex: 2, minWidth: 300, editable: isStaff },
+      { field: 'id', headerName: t.columns.id, width: 70, type: 'number', align: 'left', headerAlign: 'left' },
+      { field: 'title', headerName: t.columns.title, flex: 2, minWidth: 300, editable: isStaff },
       {
         field: 'practice_area',
-        headerName: 'Área',
+        headerName: t.columns.area,
         width: 180,
         type: 'singleSelect',
         editable: isStaff,
-        valueOptions: AREAS.map((a) => ({ value: a, label: AREA_LABEL[a] })),
+        valueOptions: AREAS.map((a) => ({ value: a, label: areaLabel[locale][a] })),
       },
       {
         field: 'status',
-        headerName: 'Situação',
+        headerName: t.columns.status,
         width: 160,
         type: 'singleSelect',
         editable: isStaff,
-        valueOptions: STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+        valueOptions: STATUSES.map((s) => ({ value: s, label: statusLabel[locale][s] })),
         renderCell: ({ row }) => <StatusChip status={row.status} />,
       },
       role !== 'client' && {
         field: 'company_id',
-        headerName: 'Empresa',
+        headerName: t.columns.company,
         flex: 1.2,
         minWidth: 220,
         type: 'singleSelect',
@@ -196,7 +201,7 @@ export function CasesView({
       },
       role !== 'lawyer' && {
         field: 'lawyer_id',
-        headerName: 'Advogado',
+        headerName: t.columns.lawyer,
         width: 180,
         type: 'singleSelect',
         editable: isSecretary,
@@ -206,12 +211,12 @@ export function CasesView({
       },
       {
         field: 'updated_at',
-        headerName: 'Atualizado em',
+        headerName: t.columns.updated,
         type: 'dateTime',
         width: 150,
-        valueFormatter: (value: Date) => formatDateTime(value.toISOString()),
+        valueFormatter: (value: Date) => formatDateTime(value.toISOString(), locale),
       },
-      { field: 'created_at', headerName: 'Aberto em', type: 'date', width: 130 },
+      { field: 'created_at', headerName: t.columns.created, type: 'date', width: 130 },
       {
         field: 'actions',
         type: 'actions',
@@ -221,15 +226,15 @@ export function CasesView({
           <GridActionsCellItem
             key="open"
             icon={<OpenInNewIcon fontSize="small" />}
-            label="Abrir processo"
-            onClick={() => router.push(`/processos/${row.id}`)}
+            label={t.open}
+            onClick={() => router.push(`/cases/${row.id}`)}
           />,
           ...(isSecretary
             ? [
                 <GridActionsCellItem
                   key="delete"
                   icon={<DeleteOutlinedIcon fontSize="small" />}
-                  label="Excluir"
+                  label={common[locale].delete}
                   onClick={() => setToDelete(row)}
                 />,
               ]
@@ -238,7 +243,7 @@ export function CasesView({
       },
     ];
     return list.filter(Boolean) as GridColDef<Row>[];
-  }, [companies, isSecretary, isStaff, lawyers, role, router, rows]);
+  }, [companies, isSecretary, isStaff, lawyers, locale, role, router, rows, t]);
 
   const selectedIds = [...selection.ids].map(Number);
 
@@ -247,11 +252,11 @@ export function CasesView({
       size="small"
       color="error"
       startIcon={<DeleteOutlinedIcon />}
-      label={selectedIds.length === 1 ? 'Excluir selecionado' : `Excluir ${selectedIds.length} selecionados`}
+      label={t.deleteSelected(selectedIds.length)}
       confirm={{
-        title: selectedIds.length === 1 ? 'Excluir este processo?' : `Excluir ${selectedIds.length} processos?`,
-        body: 'A exclusão é definitiva. Para guardar o histórico, mude a situação para Arquivado.',
-        confirmLabel: 'Excluir',
+        title: t.deleteManyTitle(selectedIds.length),
+        body: t.deleteBody,
+        confirmLabel: common[locale].delete,
       }}
       action={() => deleteCases(selectedIds)}
       onDone={(state) => state.success && removeRows(selectedIds)}
@@ -265,10 +270,10 @@ export function CasesView({
       <Stack spacing={2} sx={{ pl: 13, pr: 3, py: 2, bgcolor: '#f8fafc', maxWidth: 820 }}>
         <Box>
           <Typography variant="subtitle2" gutterBottom>
-            Andamento
+            {t.panel.history}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-            {row.description || 'Sem descrição registrada.'}
+            {row.description || t.panel.noDescription}
           </Typography>
         </Box>
         <Box>
@@ -289,34 +294,28 @@ export function CasesView({
             <Button
               size="small"
               startIcon={<MailOutlinedIcon />}
-              href={`mailto:${row.lawyer_email}?subject=${encodeURIComponent(`Processo #${row.id}: ${row.title}`)}`}
+              href={`mailto:${row.lawyer_email}?subject=${encodeURIComponent(t.detail.mailSubject(row.id, row.title))}`}
               sx={{ mt: 1, ml: -0.5 }}
             >
-              Falar com o advogado
+              {t.panel.contact}
             </Button>
           )}
         </Box>
       </Stack>
     ),
-    [userId],
+    [t, userId],
   );
 
   return (
     <>
       <PageHeader
-        title={role === 'lawyer' ? 'Meus processos' : 'Processos'}
-        subtitle={
-          role === 'client'
-            ? 'Acompanhe os processos da sua empresa. Expanda uma linha para ver o andamento.'
-            : isStaff
-              ? 'Clique duas vezes numa célula para editar. Expanda uma linha para ver o andamento.'
-              : undefined
-        }
+        title={t.title[role]}
+        subtitle={isStaff ? t.subtitle.staff : t.subtitle.client}
         actions={
           <>
             {isStaff && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)} sx={{ whiteSpace: 'nowrap' }}>
-                Novo processo
+                {t.newCase}
               </Button>
             )}
           </>
@@ -326,9 +325,9 @@ export function CasesView({
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
         {STATUSES.map((status) => (
           <Card key={status} sx={{ borderLeft: 4, borderLeftColor: STATUS_ACCENT[status] }}>
-            <CardActionArea onClick={() => filterByStatus(status)} sx={{ px: 2.5, py: 2 }} aria-label={`Filtrar: ${STATUS_LABEL[status]}`}>
+            <CardActionArea onClick={() => filterByStatus(status)} sx={{ px: 2.5, py: 2 }} aria-label={t.filterBy(statusLabel[locale][status])}>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                {STATUS_LABEL[status]}
+                {statusLabel[locale][status]}
               </Typography>
               <Typography variant="h4" sx={{ mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
                 {counts[status]}
@@ -344,15 +343,15 @@ export function CasesView({
           exclusive
           value={tab}
           onChange={(_, value: Tab | null) => value && setTab(value)}
-          aria-label="Filtrar por situação"
+          aria-label={t.tabsAria}
         >
-          <ToggleButton value="active">Em andamento ({counts.open + counts.in_progress})</ToggleButton>
-          <ToggleButton value="finished">Finalizados ({counts.closed + counts.archived})</ToggleButton>
-          <ToggleButton value="all">Todos ({rows.length})</ToggleButton>
+          <ToggleButton value="active">{t.tabs.active} ({counts.open + counts.in_progress})</ToggleButton>
+          <ToggleButton value="finished">{t.tabs.finished} ({counts.closed + counts.archived})</ToggleButton>
+          <ToggleButton value="all">{t.tabs.all} ({rows.length})</ToggleButton>
         </ToggleButtonGroup>
         {filterModel.items.length > 0 && (
           <Button size="small" onClick={() => setFilterModel({ items: [] })}>
-            Limpar filtros
+            {t.clearFilters}
           </Button>
         )}
       </Stack>
@@ -363,7 +362,7 @@ export function CasesView({
           columns={columns}
           showToolbar
           slots={{ toolbar: GridToolbar }}
-          slotProps={{ toolbar: { actions: bulkDelete, exportName: 'processos' } }}
+          slotProps={{ toolbar: { actions: bulkDelete, exportName: locale === 'pt' ? 'processos' : 'cases' } }}
           filterModel={filterModel}
           onFilterModelChange={setFilterModel}
           checkboxSelection={isSecretary}
@@ -379,16 +378,16 @@ export function CasesView({
             columns: { columnVisibilityModel: { created_at: false } },
             pinnedColumns: { right: ['actions'] },
           }}
-          localeText={gridLocale({ noRowsLabel: 'Nenhum processo nesta lista.' })}
+          localeText={gridLocale(locale, { noRowsLabel: t.empty })}
         />
       </Box>
 
       <ConfirmDialog
         open={toDelete !== null}
         onClose={() => setToDelete(null)}
-        title={`Excluir o processo #${toDelete?.id}?`}
-        body={`"${toDelete?.title}" será removido de vez. Para guardar o histórico, mude a situação para Arquivado.`}
-        confirmLabel="Excluir"
+        title={t.deleteOneTitle(toDelete?.id ?? 0)}
+        body={t.deleteOneBody(toDelete?.title ?? '')}
+        confirmLabel={common[locale].delete}
         action={() => deleteCases([toDelete!.id])}
         onDone={(state) => state.success && toDelete && removeRows([toDelete.id])}
       />
@@ -397,20 +396,20 @@ export function CasesView({
         <FormDialog
           open={creating}
           onClose={() => setCreating(false)}
-          title="Novo processo"
-          description={role === 'lawyer' ? 'O processo fica no seu nome.' : undefined}
+          title={t.newCase}
+          description={role === 'lawyer' ? t.newCaseHint : undefined}
         >
           <ActionForm
             action={createCase}
-            submitLabel="Abrir processo"
+            submitLabel={t.fields.submit}
             onSuccess={() => {
               setCreating(false);
-              router.replace('/processos');
+              router.replace('/cases');
               router.refresh();
             }}
             secondary={
               <Button color="inherit" onClick={() => setCreating(false)}>
-                Cancelar
+                {common[locale].cancel}
               </Button>
             }
           >

@@ -30,22 +30,26 @@ import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 import type { Role } from '@/lib/api/client';
-import { ROLE_LABEL } from '@/lib/format';
+import { common, roleLabel } from '@/content/common';
 import { SIDEBAR } from '@/theme';
 
 import { Brand } from './common';
+import { LanguageSwitch } from './LanguageSwitch';
+import { useLocale } from './LocaleProvider';
 
-const NAV: Record<Role, { href: string; label: string; icon: ReactNode }[]> = {
+type NavKey = keyof (typeof common)['pt']['nav'];
+
+const NAV: Record<Role, { href: string; label: NavKey; icon: ReactNode }[]> = {
   secretary: [
-    { href: '/processos', label: 'Processos', icon: <GavelOutlinedIcon /> },
-    { href: '/empresas', label: 'Empresas', icon: <BusinessOutlinedIcon /> },
-    { href: '/advogados', label: 'Advogados', icon: <BadgeOutlinedIcon /> },
+    { href: '/cases', label: 'cases', icon: <GavelOutlinedIcon /> },
+    { href: '/companies', label: 'companies', icon: <BusinessOutlinedIcon /> },
+    { href: '/lawyers', label: 'lawyers', icon: <BadgeOutlinedIcon /> },
   ],
   lawyer: [
-    { href: '/processos', label: 'Meus processos', icon: <GavelOutlinedIcon /> },
-    { href: '/empresas', label: 'Empresas', icon: <BusinessOutlinedIcon /> },
+    { href: '/cases', label: 'myCases', icon: <GavelOutlinedIcon /> },
+    { href: '/companies', label: 'companies', icon: <BusinessOutlinedIcon /> },
   ],
-  client: [{ href: '/processos', label: 'Processos da empresa', icon: <GavelOutlinedIcon /> }],
+  client: [{ href: '/cases', label: 'companyCases', icon: <GavelOutlinedIcon /> }],
 };
 
 function initials(name: string) {
@@ -67,18 +71,20 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const locale = useLocale();
+  const t = common[locale];
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   const sidebar = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: SIDEBAR.background, color: SIDEBAR.text }}>
       <Toolbar sx={{ px: 2.5 }}>
-        <NextLink href="/processos" aria-label="Case Desk, início" style={{ textDecoration: 'none' }}>
+        <NextLink href="/cases" aria-label={t.shell.home} style={{ textDecoration: 'none' }}>
           <Brand tone="light" size={30} />
         </NextLink>
       </Toolbar>
       <Typography variant="overline" sx={{ px: 3, pt: 2, color: SIDEBAR.muted, fontWeight: 700 }}>
-        Escritório
+        {t.nav.office}
       </Typography>
       <List sx={{ px: 1.5 }}>
         {NAV[user.role].map((item) => {
@@ -109,7 +115,7 @@ export function AppShell({
               }}
             >
               <ListItemIcon sx={{ minWidth: 38, color: 'inherit' }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} slotProps={{ primary: { sx: { fontWeight: active ? 600 : 500, fontSize: 14 } } }} />
+              <ListItemText primary={t.nav[item.label]} slotProps={{ primary: { sx: { fontWeight: active ? 600 : 500, fontSize: 14 } } }} />
             </ListItemButton>
           );
         })}
@@ -117,9 +123,9 @@ export function AppShell({
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ p: 2.5 }}>
         <Typography variant="caption" sx={{ color: SIDEBAR.muted, display: 'block', lineHeight: 1.5 }}>
-          Case Desk · FastAPI, Next.js e MUI.{' '}
+          {t.shell.credit}{' '}
           <Link href={repoUrl} target="_blank" rel="noreferrer" sx={{ color: SIDEBAR.text }}>
-            Código
+            {t.shell.code}
           </Link>
         </Typography>
       </Box>
@@ -149,17 +155,18 @@ export function AppShell({
       <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }}>
           <Toolbar sx={{ gap: 1 }}>
-            <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label="Abrir menu">
+            <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }} aria-label={t.shell.openMenu}>
               <MenuIcon />
             </IconButton>
             <Box sx={{ display: { xs: 'block', md: 'none' } }}>
               <Brand size={26} />
             </Box>
             <Box sx={{ flexGrow: 1 }} />
+            <LanguageSwitch />
             <ButtonBase
               onClick={(e) => setMenuAnchor(e.currentTarget)}
               sx={{ borderRadius: 2, px: 1, py: 0.5, gap: 1.25, textAlign: 'left' }}
-              aria-label="Menu da conta"
+              aria-label={t.shell.accountMenu}
             >
               <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14, fontWeight: 600 }}>
                 {initials(user.full_name)}
@@ -169,7 +176,7 @@ export function AppShell({
                   {user.full_name}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {ROLE_LABEL[user.role]}
+                  {roleLabel[locale][user.role]}
                 </Typography>
               </Box>
               <ExpandMoreTwoToneIcon fontSize="small" sx={{ display: { xs: 'none', sm: 'block' }, color: 'text.secondary' }} />
@@ -191,7 +198,7 @@ export function AppShell({
                     {user.full_name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap component="div">
-                    {ROLE_LABEL[user.role]} · {user.email}
+                    {roleLabel[locale][user.role]} · {user.email}
                   </Typography>
                 </Box>
               </Box>
@@ -199,19 +206,19 @@ export function AppShell({
               {NAV[user.role].map((item) => (
                 <MenuItem key={item.href} component={NextLink} href={item.href} onClick={() => setMenuAnchor(null)}>
                   <ListItemIcon>{item.icon}</ListItemIcon>
-                  {item.label}
+                  {t.nav[item.label]}
                 </MenuItem>
               ))}
-              <MenuItem component={NextLink} href="/conta" onClick={() => setMenuAnchor(null)}>
+              <MenuItem component={NextLink} href="/account" onClick={() => setMenuAnchor(null)}>
                 <ListItemIcon>
                   <AccountCircleOutlinedIcon fontSize="small" />
                 </ListItemIcon>
-                Minha conta
+                {t.nav.account}
               </MenuItem>
               <Divider />
               <Box component="form" action={logout} sx={{ px: 1, pb: 0.5 }}>
                 <Button type="submit" color="error" fullWidth startIcon={<LockOpenTwoToneIcon />}>
-                  Sair
+                  {t.shell.signOut}
                 </Button>
               </Box>
             </Menu>
@@ -220,8 +227,7 @@ export function AppShell({
 
         {demoMode && (
           <Alert severity="warning" variant="standard" sx={{ borderRadius: 0, py: 0.25, '& .MuiAlert-message': { width: '100%' } }}>
-            Demonstração pública com dados fictícios, restaurados todos os dias às 03:00 (Brasília). Convites e e-mails não
-            são enviados aqui.
+            {t.shell.demoBanner}
           </Alert>
         )}
 

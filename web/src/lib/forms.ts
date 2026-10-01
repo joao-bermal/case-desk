@@ -23,10 +23,17 @@ export function optional(value: string | undefined) {
   return trimmed ? trimmed : null;
 }
 
-/** Turns an API error body into form state. The API answers {detail, errors?}. */
-export function apiError(error: unknown, values?: Record<string, string>): FormState {
+/**
+ * Turns an API error body into form state. The API answers {detail, errors?} in the
+ * language it was asked for; `fallback` covers network failures with no body.
+ */
+export function apiError(error: unknown, values?: Record<string, string>, fallback = 'Error'): FormState {
   const body = (error ?? {}) as { detail?: unknown; errors?: Record<string, string> };
-  const message =
-    typeof body.detail === 'string' ? body.detail : 'Não foi possível concluir. Tente de novo.';
+  const message = typeof body.detail === 'string' ? body.detail : fallback;
   return { error: message, fieldErrors: body.errors, values };
+}
+
+/** The first field error, or the general message: what a grid edit shows in the snackbar. */
+export function firstError(state: FormState) {
+  return Object.values(state.fieldErrors ?? {})[0] ?? state.error;
 }

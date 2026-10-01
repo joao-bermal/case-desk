@@ -13,8 +13,10 @@ import Stack from '@mui/material/Stack';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { createContext, useActionState, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 
+import { common } from '@/content/common';
 import { emptyForm, type FormState } from '@/lib/forms';
 
+import { useLocale } from './LocaleProvider';
 import { useNotify } from './Notifier';
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>;
@@ -28,7 +30,7 @@ const FormStateContext = createContext<FormState>(emptyForm);
 export function ActionForm({
   action,
   submitLabel,
-  pendingLabel = 'Salvando…',
+  pendingLabel,
   children,
   secondary,
   onSuccess,
@@ -49,6 +51,7 @@ export function ActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, emptyForm);
   const notify = useNotify();
+  const locale = useLocale();
   const handled = useRef<FormState | null>(null);
 
   useEffect(() => {
@@ -66,7 +69,7 @@ export function ActionForm({
         {children}
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', pt: 0.5 }}>
           <Button type="submit" variant="contained" disabled={pending} fullWidth={fullWidthSubmit}>
-            {pending ? pendingLabel : submitLabel}
+            {pending ? (pendingLabel ?? common[locale].saving) : submitLabel}
           </Button>
           {secondary}
         </Stack>
@@ -223,7 +226,7 @@ export function ConfirmDialog({
   onClose,
   title,
   body,
-  confirmLabel = 'Confirmar',
+  confirmLabel,
   danger = true,
   action,
   onDone,
@@ -238,6 +241,7 @@ export function ConfirmDialog({
   onDone?: (state: FormState) => void;
 }) {
   const { pending, run } = useRunAction(action, onDone);
+  const t = common[useLocale()];
   return (
     <Dialog open={open} onClose={() => !pending && onClose()} maxWidth="xs" fullWidth>
       <DialogTitle>{title}</DialogTitle>
@@ -248,10 +252,10 @@ export function ConfirmDialog({
       )}
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={pending} color="inherit">
-          Cancelar
+          {t.cancel}
         </Button>
         <Button onClick={() => run(onClose)} disabled={pending} variant="contained" color={danger ? 'error' : 'primary'}>
-          {pending ? 'Aguarde…' : confirmLabel}
+          {pending ? t.wait : (confirmLabel ?? t.confirm)}
         </Button>
       </DialogActions>
     </Dialog>

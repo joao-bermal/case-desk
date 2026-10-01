@@ -27,6 +27,10 @@ import {
 } from '@mui/x-data-grid-pro';
 import { useState, type ReactNode } from 'react';
 
+import { common } from '@/content/common';
+
+import { useLocale } from './LocaleProvider';
+
 declare module '@mui/x-data-grid-pro' {
   interface ToolbarPropsOverrides {
     /** Buttons on the left of the toolbar, such as "Excluir selecionados". */
@@ -36,19 +40,20 @@ declare module '@mui/x-data-grid-pro' {
   }
 }
 
-const DENSITIES: { value: GridDensity; label: string; icon: ReactNode }[] = [
-  { value: 'compact', label: 'Compacta', icon: <DensitySmallIcon fontSize="small" /> },
-  { value: 'standard', label: 'Padrão', icon: <DensityMediumIcon fontSize="small" /> },
-  { value: 'comfortable', label: 'Confortável', icon: <DensityLargeIcon fontSize="small" /> },
+const DENSITIES: { value: GridDensity; icon: ReactNode }[] = [
+  { value: 'compact', icon: <DensitySmallIcon fontSize="small" /> },
+  { value: 'standard', icon: <DensityMediumIcon fontSize="small" /> },
+  { value: 'comfortable', icon: <DensityLargeIcon fontSize="small" /> },
 ];
 
 function DensityMenu() {
+  const t = common[useLocale()].grid;
   const apiRef = useGridApiContext();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   return (
     <>
       <Button size="small" startIcon={<DensityMediumIcon />} onClick={(e) => setAnchor(e.currentTarget)}>
-        Densidade
+        {t.density}
       </Button>
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
         {DENSITIES.map((density) => (
@@ -60,7 +65,7 @@ function DensityMenu() {
             }}
           >
             <ListItemIcon>{density.icon}</ListItemIcon>
-            {density.label}
+            {t.densities[density.value]}
           </MenuItem>
         ))}
       </Menu>
@@ -73,12 +78,13 @@ function DensityMenu() {
  * action), rebuilt on the DataGrid v9 toolbar parts, plus a quick search.
  */
 export function GridToolbar({ actions, exportName = 'export' }: { actions?: ReactNode; exportName?: string }) {
+  const t = common[useLocale()].grid;
   return (
     // The toolbar root has a fixed height; let it grow so the buttons can wrap on phones.
     <Toolbar style={{ height: 'auto', minHeight: 52, flex: '0 0 auto', flexWrap: 'wrap', rowGap: 4, paddingBlock: 6 }}>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, flexGrow: 1 }}>
         <ColumnsPanelTrigger size="small" startIcon={<ViewColumnOutlinedIcon />}>
-          Colunas
+          {t.columns}
         </ColumnsPanelTrigger>
         <FilterPanelTrigger
           render={(props, state) => (
@@ -91,7 +97,7 @@ export function GridToolbar({ actions, exportName = 'export' }: { actions?: Reac
                 </Badge>
               }
             >
-              Filtros
+              {t.filters}
             </Button>
           )}
         />
@@ -101,7 +107,7 @@ export function GridToolbar({ actions, exportName = 'export' }: { actions?: Reac
           startIcon={<FileDownloadOutlinedIcon />}
           options={{ fileName: exportName, delimiter: ';', utf8WithBom: true }}
         >
-          Exportar
+          {t.export}
         </ExportCsv>
         {actions}
       </Box>
@@ -112,8 +118,8 @@ export function GridToolbar({ actions, exportName = 'export' }: { actions?: Reac
               {...controlProps}
               inputRef={ref}
               size="small"
-              placeholder="Buscar…"
-              aria-label="Buscar"
+              placeholder={t.search}
+              aria-label={t.search}
               sx={{ width: { xs: '100%', sm: 260 } }}
               slotProps={{
                 ...controlProps.slotProps,

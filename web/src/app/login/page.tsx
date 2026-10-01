@@ -3,15 +3,19 @@ import { redirect } from 'next/navigation';
 
 import { demoLogin, login } from '@/actions/auth';
 import { AuthLayout } from '@/components/AuthLayout';
+import { auth } from '@/content/auth';
 import { getCurrentUser } from '@/lib/auth';
 import { DEMO_MODE, REPO_URL } from '@/lib/demo';
+import { getLocale } from '@/lib/locale';
 
 import { LoginView } from './LoginView';
 
-export const metadata: Metadata = { title: 'Entrar' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: auth[await getLocale()].meta.login };
+}
 
 export default async function LoginPage() {
-  if (await getCurrentUser()) redirect('/processos');
+  if (await getCurrentUser()) redirect('/cases');
 
   const demoActions = DEMO_MODE
     ? {

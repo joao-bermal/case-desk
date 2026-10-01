@@ -14,7 +14,10 @@ import { createCompany, deleteCompany, patchCompany } from '@/actions/companies'
 import { PageHeader } from '@/components/common';
 import { ActionForm, ConfirmDialog, FormDialog } from '@/components/forms';
 import { GridToolbar } from '@/components/GridToolbar';
+import { useLocale } from '@/components/LocaleProvider';
 import { useNotify } from '@/components/Notifier';
+import { common, messages } from '@/content/common';
+import { companiesCopy } from '@/content/pages';
 import { gridLocale } from '@/theme';
 import type { Company } from '@/lib/api/client';
 import { formatCnpj, formatPhone } from '@/lib/format';
@@ -26,6 +29,8 @@ const EDITABLE = ['legal_name', 'cnpj', 'email', 'phone'] as const;
 export function CompaniesView({ companies, canEdit }: { companies: Company[]; canEdit: boolean }) {
   const router = useRouter();
   const notify = useNotify();
+  const locale = useLocale();
+  const t = companiesCopy[locale];
   const [rows, setRows] = useState(companies);
   // Fresh data from the server (after router.refresh) replaces the local rows.
   const [source, setSource] = useState(companies);
@@ -44,33 +49,33 @@ export function CompaniesView({ companies, canEdit }: { companies: Company[]; ca
       }
       if (Object.keys(changes).length === 0) return oldRow;
       const result = await patchCompany(newRow.id, changes);
-      if (!result.row) throw new Error(result.error ?? 'Não foi possível salvar.');
-      notify('Empresa atualizada.');
+      if (!result.row) throw new Error(result.error ?? messages[locale].notSaved);
+      notify(messages[locale].companySaved);
       return result.row;
     },
-    [notify],
+    [locale, notify],
   );
 
   const columns = useMemo<GridColDef<Company>[]>(
     () => [
-      { field: 'legal_name', headerName: 'Razão social', flex: 1.4, minWidth: 240, editable: canEdit },
+      { field: 'legal_name', headerName: t.columns.legalName, flex: 1.4, minWidth: 240, editable: canEdit },
       {
         field: 'cnpj',
-        headerName: 'CNPJ',
+        headerName: t.columns.cnpj,
         width: 190,
         editable: canEdit,
         valueFormatter: (value: string) => formatCnpj(value),
       },
-      { field: 'email', headerName: 'E-mail', flex: 1, minWidth: 220, editable: canEdit },
+      { field: 'email', headerName: t.columns.email, flex: 1, minWidth: 220, editable: canEdit },
       {
         field: 'phone',
-        headerName: 'Telefone',
+        headerName: t.columns.phone,
         width: 160,
         editable: canEdit,
         valueFormatter: (value: string | null) => formatPhone(value),
       },
-      { field: 'active_cases', headerName: 'Em andamento', type: 'number', width: 130 },
-      { field: 'finished_cases', headerName: 'Finalizados', type: 'number', width: 120 },
+      { field: 'active_cases', headerName: t.columns.active, type: 'number', width: 130 },
+      { field: 'finished_cases', headerName: t.columns.finished, type: 'number', width: 120 },
       {
         field: 'actions',
         type: 'actions',
@@ -79,21 +84,21 @@ export function CompaniesView({ companies, canEdit }: { companies: Company[]; ca
           <GridActionsCellItem
             key="open"
             icon={<OpenInNewIcon fontSize="small" />}
-            label="Abrir empresa"
-            onClick={() => router.push(`/empresas/${row.id}`)}
+            label={t.openCompany}
+            onClick={() => router.push(`/companies/${row.id}`)}
           />,
           <GridActionsCellItem
             key="cases"
             icon={<GavelOutlinedIcon fontSize="small" />}
-            label="Ver processos"
-            onClick={() => router.push(`/processos?empresa=${row.id}`)}
+            label={t.viewCases}
+            onClick={() => router.push(`/cases?company=${row.id}`)}
           />,
           ...(canEdit
             ? [
                 <GridActionsCellItem
                   key="delete"
                   icon={<DeleteOutlinedIcon fontSize="small" />}
-                  label="Excluir"
+                  label={common[locale].delete}
                   onClick={() => setToDelete(row)}
                 />,
               ]
@@ -101,22 +106,18 @@ export function CompaniesView({ companies, canEdit }: { companies: Company[]; ca
         ],
       },
     ],
-    [canEdit, router],
+    [canEdit, locale, router, t],
   );
 
   return (
     <>
       <PageHeader
-        title="Empresas clientes"
-        subtitle={
-          canEdit
-            ? 'Clique duas vezes numa célula para editar. Abra a empresa para dar acesso às pessoas dela.'
-            : 'Contatos das empresas atendidas pelo escritório.'
-        }
+        title={t.title}
+        subtitle={canEdit ? t.subtitleEdit : t.subtitleRead}
         actions={
           canEdit && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
-              Nova empresa
+              {t.newCompany}
             </Button>
           )
         }
@@ -127,21 +128,21 @@ export function CompaniesView({ companies, canEdit }: { companies: Company[]; ca
           columns={columns}
           showToolbar
           slots={{ toolbar: GridToolbar }}
-          slotProps={{ toolbar: { exportName: 'empresas' } }}
+          slotProps={{ toolbar: { exportName: locale === 'pt' ? 'empresas' : 'companies' } }}
           disableRowSelectionOnClick
           processRowUpdate={processRowUpdate}
           onProcessRowUpdateError={(error: Error) => notify(error.message, 'error')}
           initialState={{ sorting: { sortModel: [{ field: 'legal_name', sort: 'asc' }] }, pinnedColumns: { right: ['actions'] } }}
-          localeText={gridLocale({ noRowsLabel: 'Nenhuma empresa cadastrada.' })}
+          localeText={gridLocale(locale, { noRowsLabel: t.empty })}
         />
       </Box>
 
       <ConfirmDialog
         open={toDelete !== null}
         onClose={() => setToDelete(null)}
-        title={`Excluir ${toDelete?.legal_name}?`}
-        body="Os acessos das pessoas da empresa também são removidos. Empresas com processos não podem ser excluídas."
-        confirmLabel="Excluir"
+        title={t.deleteTitle(toDelete?.legal_name ?? '')}
+        body={t.deleteBody}
+        confirmLabel={common[locale].delete}
         action={() => deleteCompany(toDelete!.id)}
         onDone={(state) => {
           if (!state.success || !toDelete) return;
@@ -154,19 +155,19 @@ export function CompaniesView({ companies, canEdit }: { companies: Company[]; ca
         <FormDialog
           open={creating}
           onClose={() => setCreating(false)}
-          title="Nova empresa"
-          description="Depois do cadastro, abra a empresa para convidar as pessoas que vão acompanhar os processos."
+          title={t.newCompany}
+          description={t.newCompanyHint}
         >
           <ActionForm
             action={createCompany}
-            submitLabel="Cadastrar empresa"
+            submitLabel={t.fields.submit}
             onSuccess={() => {
               setCreating(false);
               router.refresh();
             }}
             secondary={
               <Button color="inherit" onClick={() => setCreating(false)}>
-                Cancelar
+                {common[locale].cancel}
               </Button>
             }
           >

@@ -10,7 +10,9 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import type { CaseStatus } from '@/lib/api/client';
-import { STATUS_LABEL } from '@/lib/format';
+import { common, statusLabel } from '@/content/common';
+
+import { useLocale } from './LocaleProvider';
 
 export function Brand({ tone = 'dark', size = 32 }: { tone?: 'dark' | 'light'; size?: number }) {
   const ink = tone === 'dark' ? '#0f172a' : '#ffffff';
@@ -37,7 +39,8 @@ const STATUS_COLOR: Record<CaseStatus, 'info' | 'warning' | 'success' | 'default
 };
 
 export function StatusChip({ status, size = 'small' }: { status: CaseStatus; size?: 'small' | 'medium' }) {
-  return <Chip label={STATUS_LABEL[status]} color={STATUS_COLOR[status]} size={size} variant="outlined" />;
+  const locale = useLocale();
+  return <Chip label={statusLabel[locale][status]} color={STATUS_COLOR[status]} size={size} variant="outlined" />;
 }
 
 export function LinkButton({ href, ...props }: ButtonProps & { href: string }) {
@@ -84,6 +87,7 @@ export function PageHeader({
 }
 
 export function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+  const locale = useLocale();
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
@@ -92,7 +96,7 @@ export function DetailItem({ label, children }: { label: string; children: React
       <Typography variant="body2" sx={{ mt: 0.25 }} component="div">
         {children || (
           <Box component="span" sx={{ color: 'text.disabled' }}>
-            Não informado
+            {common[locale].notInformed}
           </Box>
         )}
       </Typography>

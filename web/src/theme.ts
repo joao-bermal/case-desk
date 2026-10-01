@@ -1,15 +1,21 @@
+import { enUS as coreEnUS, ptBR as corePtBR } from '@mui/material/locale';
 import { createTheme } from '@mui/material/styles';
-import { ptBR as corePtBR } from '@mui/material/locale';
-import { ptBR as gridPtBR } from '@mui/x-data-grid-pro/locales';
+import { enUS as gridEnUS, ptBR as gridPtBR } from '@mui/x-data-grid-pro/locales';
 import type {} from '@mui/x-data-grid/themeAugmentation';
 import type {} from '@mui/x-data-grid-pro/themeAugmentation';
 
+import type { Locale } from '@/lib/i18n';
+
+
+const GRID_LOCALE = { pt: gridPtBR, en: gridEnUS };
+const CORE_LOCALE = { pt: corePtBR, en: coreEnUS };
+
 /**
- * Grid texts in Portuguese plus per-grid overrides. A `localeText` prop replaces the
- * theme's translations instead of merging with them, so grids pass this instead.
+ * Grid texts in the visitor's language plus per-grid overrides. A `localeText` prop replaces
+ * the theme's translations instead of merging with them, so grids pass this instead.
  */
-export function gridLocale(overrides: Record<string, string>) {
-  return { ...gridPtBR.components.MuiDataGrid.defaultProps.localeText, ...overrides };
+export function gridLocale(locale: Locale, overrides: Record<string, string>) {
+  return { ...GRID_LOCALE[locale].components.MuiDataGrid.defaultProps.localeText, ...overrides };
 }
 
 export const SIDEBAR = {
@@ -23,7 +29,8 @@ export const SIDEBAR = {
 
 const border = '#e2e8f0';
 
-export const theme = createTheme(
+const baseTheme = (locale: Locale) =>
+  createTheme(
   {
     palette: {
       primary: { main: '#1e293b', dark: '#0f172a', light: '#334155', contrastText: '#ffffff' },
@@ -65,6 +72,12 @@ export const theme = createTheme(
       },
     },
   },
-  gridPtBR,
-  corePtBR,
+  GRID_LOCALE[locale],
+  CORE_LOCALE[locale],
 );
+
+/** One theme per language, built once. */
+export const themes: Record<Locale, ReturnType<typeof baseTheme>> = {
+  pt: baseTheme('pt'),
+  en: baseTheme('en'),
+};

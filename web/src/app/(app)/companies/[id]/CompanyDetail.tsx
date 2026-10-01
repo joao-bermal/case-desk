@@ -23,6 +23,9 @@ import { Fragment } from 'react';
 import { deleteCompany, inviteClientUser, removeClientUser, resendInvite, updateCompany } from '@/actions/companies';
 import { DetailItem, LinkButton, PageHeader } from '@/components/common';
 import { ActionButton, ActionForm, Field } from '@/components/forms';
+import { useLocale } from '@/components/LocaleProvider';
+import { common } from '@/content/common';
+import { companiesCopy } from '@/content/pages';
 import type { CompanyDetail as Company } from '@/lib/api/client';
 import { formatCnpj, formatPhone } from '@/lib/format';
 
@@ -30,22 +33,24 @@ import { CompanyFields } from '../CompanyFields';
 
 export function CompanyDetail({ company, canEdit }: { company: Company; canEdit: boolean }) {
   const router = useRouter();
-  const path = `/empresas/${company.id}`;
+  const locale = useLocale();
+  const t = companiesCopy[locale].detail;
+  const path = `/companies/${company.id}`;
   const refresh = () => router.refresh();
 
   return (
     <>
       <PageHeader
         title={company.legal_name}
-        subtitle={`CNPJ ${formatCnpj(company.cnpj)} · ${company.active_cases} em andamento · ${company.finished_cases} finalizados`}
-        back={{ href: '/empresas', label: 'Empresas' }}
+        subtitle={t.subtitle(formatCnpj(company.cnpj), company.active_cases, company.finished_cases)}
+        back={{ href: '/companies', label: companiesCopy[locale].meta }}
         actions={
           <>
-            <LinkButton href={`/processos?empresa=${company.id}`} variant="outlined" startIcon={<GavelOutlinedIcon />}>
-              Ver processos
+            <LinkButton href={`/cases?company=${company.id}`} variant="outlined" startIcon={<GavelOutlinedIcon />}>
+              {t.viewCases}
             </LinkButton>
-            <LinkButton href={`/processos?novo=1&empresa=${company.id}`} variant="contained" startIcon={<AddIcon />}>
-              Novo processo
+            <LinkButton href={`/cases?new=1&company=${company.id}`} variant="contained" startIcon={<AddIcon />}>
+              {t.newCase}
             </LinkButton>
           </>
         }
@@ -56,16 +61,16 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
           <Card>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Cadastro
+                {t.registration}
               </Typography>
               {canEdit ? (
-                <ActionForm action={updateCompany.bind(null, company.id)} submitLabel="Salvar alterações" onSuccess={refresh}>
+                <ActionForm action={updateCompany.bind(null, company.id)} submitLabel={t.save} onSuccess={refresh}>
                   <CompanyFields current={company} />
                 </ActionForm>
               ) : (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={4}>
-                  <DetailItem label="E-mail">{company.email}</DetailItem>
-                  <DetailItem label="Telefone">{formatPhone(company.phone)}</DetailItem>
+                  <DetailItem label={t.email}>{company.email}</DetailItem>
+                  <DetailItem label={t.phone}>{formatPhone(company.phone)}</DetailItem>
                 </Stack>
               )}
             </CardContent>
@@ -77,13 +82,13 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
             <Stack spacing={3}>
               <Card>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h6">Acessos do cliente</Typography>
+                  <Typography variant="h6">{t.access}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Pessoas da empresa que acompanham os processos. Elas só leem.
+                    {t.accessHint}
                   </Typography>
                   {company.users.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                      Ninguém da empresa tem acesso ainda.
+                      {t.noAccess}
                     </Typography>
                   ) : (
                     <List disablePadding sx={{ mt: 1 }}>
@@ -103,7 +108,7 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
                               size="small"
                               variant="outlined"
                               color={person.has_password || person.is_demo ? 'success' : 'warning'}
-                              label={person.has_password || person.is_demo ? 'Acesso ativo' : 'Convite pendente'}
+                              label={person.has_password || person.is_demo ? t.active : t.pending}
                               sx={{ mt: 1 }}
                             />
                             {!person.is_demo && (
@@ -112,15 +117,15 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
                                   <ActionButton
                                     size="small"
                                     startIcon={<SendOutlinedIcon />}
-                                    label="Reenviar convite"
+                                    label={t.resend}
                                     action={() => resendInvite(person.id, path)}
                                   />
                                 )}
                                 <ActionButton
                                   size="small"
                                   color="error"
-                                  label="Remover acesso"
-                                  confirm={{ title: `Remover o acesso de ${person.full_name}?`, confirmLabel: 'Remover' }}
+                                  label={t.remove}
+                                  confirm={{ title: t.removeTitle(person.full_name), confirmLabel: t.removeConfirm }}
                                   action={() => removeClientUser(company.id, person.id)}
                                   onDone={refresh}
                                 />
@@ -138,17 +143,17 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
                     <PersonAddOutlinedIcon color="action" />
-                    <Typography variant="h6">Convidar pessoa</Typography>
+                    <Typography variant="h6">{t.invite}</Typography>
                   </Stack>
                   <ActionForm
                     action={inviteClientUser.bind(null, company.id)}
-                    submitLabel="Enviar convite"
-                    pendingLabel="Enviando…"
+                    submitLabel={t.inviteSubmit}
+                    pendingLabel={t.invitePending}
                     onSuccess={refresh}
                   >
-                    <Field name="full_name" label="Nome" required />
-                    <Field name="email" label="E-mail" type="email" helperText="Recebe um link para criar a senha." required />
-                    <Field name="phone" label="Telefone" mask="phone" />
+                    <Field name="full_name" label={t.inviteName} required />
+                    <Field name="email" label={t.inviteEmail} type="email" helperText={t.inviteEmailHint} required />
+                    <Field name="phone" label={t.invitePhone} mask="phone" />
                   </ActionForm>
                 </CardContent>
               </Card>
@@ -156,19 +161,19 @@ export function CompanyDetail({ company, canEdit }: { company: Company; canEdit:
               <Card sx={{ borderColor: 'error.light' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom>
-                    Excluir empresa
+                    {t.deleteTitle}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Só é possível excluir empresas sem processos. Os acessos das pessoas da empresa saem junto.
+                    {t.deleteHint}
                   </Typography>
                   <ActionButton
                     color="error"
                     variant="outlined"
                     startIcon={<DeleteOutlinedIcon />}
-                    label="Excluir empresa"
-                    confirm={{ title: `Excluir ${company.legal_name}?`, confirmLabel: 'Excluir' }}
+                    label={t.deleteTitle}
+                    confirm={{ title: t.deleteConfirm(company.legal_name), confirmLabel: common[locale].delete }}
                     action={() => deleteCompany(company.id)}
-                    onDone={(state) => state.success && router.push('/empresas')}
+                    onDone={(state) => state.success && router.push('/companies')}
                   />
                 </CardContent>
               </Card>

@@ -1,14 +1,18 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { companiesCopy } from '@/content/pages';
 import { api } from '@/lib/api/client';
 import { requireUser } from '@/lib/auth';
+import { getLocale } from '@/lib/locale';
 
 import { CompanyDetail } from './CompanyDetail';
 
-export const metadata: Metadata = { title: 'Empresa' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: companiesCopy[await getLocale()].meta };
+}
 
-export default async function CompanyPage({ params }: PageProps<'/empresas/[id]'>) {
+export default async function CompanyPage({ params }: PageProps<'/companies/[id]'>) {
   const user = await requireUser('secretary', 'lawyer');
   const companyId = Number((await params).id);
   if (!Number.isInteger(companyId)) notFound();

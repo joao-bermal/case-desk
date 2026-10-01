@@ -3,8 +3,11 @@
 import Stack from '@mui/material/Stack';
 
 import { AutocompleteField, Field, SelectField } from '@/components/forms';
+import { useLocale } from '@/components/LocaleProvider';
+import { areaLabel, statusLabel } from '@/content/common';
+import { casesCopy } from '@/content/pages';
 import type { CaseItem } from '@/lib/api/client';
-import { AREA_LABEL, AREAS, formatCnpj, STATUS_LABEL, STATUSES } from '@/lib/format';
+import { AREAS, formatCnpj, STATUSES } from '@/lib/format';
 
 export type CompanyOption = { id: number; legal_name: string; cnpj: string };
 export type LawyerOption = { id: number; full_name: string; is_active: boolean };
@@ -22,28 +25,30 @@ export function CaseFields({
   current?: CaseItem;
   defaultCompanyId?: number;
 }) {
+  const locale = useLocale();
+  const t = casesCopy[locale].fields;
   return (
     <>
-      <Field name="title" label="Título do processo" defaultValue={current?.title} required autoFocus={!current} />
+      <Field name="title" label={t.title} defaultValue={current?.title} required autoFocus={!current} />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <SelectField
           name="practice_area"
-          label="Área"
+          label={t.area}
           defaultValue={current?.practice_area}
-          placeholder="Escolha a área"
-          options={AREAS.map((area) => ({ value: area, label: AREA_LABEL[area] }))}
+          placeholder={t.areaPlaceholder}
+          options={AREAS.map((area) => ({ value: area, label: areaLabel[locale][area] }))}
           required
         />
         <SelectField
           name="status"
-          label="Situação"
+          label={t.status}
           defaultValue={current?.status ?? 'open'}
-          options={STATUSES.map((status) => ({ value: status, label: STATUS_LABEL[status] }))}
+          options={STATUSES.map((status) => ({ value: status, label: statusLabel[locale][status] }))}
         />
       </Stack>
       <AutocompleteField
         name="company_id"
-        label="Empresa cliente"
+        label={t.company}
         defaultValue={current?.company.id ?? defaultCompanyId}
         options={companies.map((c) => ({ value: String(c.id), label: `${c.legal_name} (${formatCnpj(c.cnpj)})` }))}
         required
@@ -51,9 +56,9 @@ export function CaseFields({
       {lawyers && (
         <SelectField
           name="lawyer_id"
-          label="Advogado responsável"
+          label={t.lawyer}
           defaultValue={current?.lawyer.id}
-          placeholder="Escolha o advogado"
+          placeholder={t.lawyerPlaceholder}
           options={lawyers
             .filter((l) => l.is_active || l.id === current?.lawyer.id)
             .map((l) => ({ value: String(l.id), label: l.full_name }))}
@@ -62,8 +67,8 @@ export function CaseFields({
       )}
       <Field
         name="description"
-        label="Descrição e andamento"
-        helperText="Contexto, prazos e próximos passos. A empresa cliente também vê este texto."
+        label={t.description}
+        helperText={t.descriptionHint}
         defaultValue={current?.description}
         multiline
         minRows={4}

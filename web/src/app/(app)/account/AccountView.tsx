@@ -21,8 +21,10 @@ import { useState } from 'react';
 import { changePassword, updateProfile } from '@/actions/auth';
 import { DetailItem, PageHeader } from '@/components/common';
 import { ActionForm, Field } from '@/components/forms';
+import { useLocale } from '@/components/LocaleProvider';
+import { roleLabel } from '@/content/common';
+import { accountCopy } from '@/content/pages';
 import type { User } from '@/lib/api/client';
-import { ROLE_LABEL } from '@/lib/format';
 
 /** A field locked until its pencil is clicked, as in the 2022 profile page. */
 function EditableField({ name, label, defaultValue, mask, disabled }: {
@@ -33,6 +35,7 @@ function EditableField({ name, label, defaultValue, mask, disabled }: {
   disabled?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const t = accountCopy[useLocale()];
   return (
     <Field
       name={name}
@@ -44,8 +47,8 @@ function EditableField({ name, label, defaultValue, mask, disabled }: {
         input: {
           endAdornment: disabled ? undefined : (
             <InputAdornment position="end">
-              <Tooltip title={editing ? 'Editando' : 'Editar'}>
-                <IconButton edge="end" onClick={() => setEditing(true)} color={editing ? 'primary' : 'default'} aria-label={`Editar ${label}`}>
+              <Tooltip title={editing ? t.editing : t.edit}>
+                <IconButton edge="end" onClick={() => setEditing(true)} color={editing ? 'primary' : 'default'} aria-label={t.editField(label)}>
                   <EditIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
@@ -60,6 +63,7 @@ function EditableField({ name, label, defaultValue, mask, disabled }: {
 
 function PasswordField({ name, label, autoComplete }: { name: string; label: string; autoComplete: string }) {
   const [visible, setVisible] = useState(false);
+  const t = accountCopy[useLocale()];
   return (
     <Field
       name={name}
@@ -71,7 +75,7 @@ function PasswordField({ name, label, autoComplete }: { name: string; label: str
         input: {
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton edge="end" onClick={() => setVisible((v) => !v)} aria-label={visible ? 'Esconder senha' : 'Mostrar senha'}>
+              <IconButton edge="end" onClick={() => setVisible((v) => !v)} aria-label={visible ? t.hidePassword : t.showPassword}>
                 {visible ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
               </IconButton>
             </InputAdornment>
@@ -84,6 +88,8 @@ function PasswordField({ name, label, autoComplete }: { name: string; label: str
 
 export function AccountView({ user }: { user: User }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = accountCopy[locale];
   const initials = user.full_name
     .split(' ')
     .filter(Boolean)
@@ -93,10 +99,10 @@ export function AccountView({ user }: { user: User }) {
 
   return (
     <>
-      <PageHeader title="Minha conta" subtitle="Seus dados de acesso ao Case Desk." />
+      <PageHeader title={t.title} subtitle={t.subtitle} />
       {user.is_demo && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          Você está numa conta de demonstração, compartilhada com outros visitantes: nome e senha ficam bloqueados.
+          {t.demoNotice}
         </Alert>
       )}
       <Grid container spacing={3}>
@@ -110,7 +116,7 @@ export function AccountView({ user }: { user: User }) {
                 <Stack spacing={0.5}>
                   <Typography variant="h6">{user.full_name}</Typography>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <Chip size="small" label={ROLE_LABEL[user.role]} />
+                    <Chip size="small" label={roleLabel[locale][user.role]} />
                     <Typography variant="body2" color="text.secondary">
                       {user.email}
                     </Typography>
@@ -119,16 +125,16 @@ export function AccountView({ user }: { user: User }) {
               </Stack>
               {user.is_demo ? (
                 <Stack spacing={2}>
-                  <DetailItem label="Nome">{user.full_name}</DetailItem>
-                  <DetailItem label="Telefone">{user.phone}</DetailItem>
+                  <DetailItem label={t.name}>{user.full_name}</DetailItem>
+                  <DetailItem label={t.phone}>{user.phone}</DetailItem>
                 </Stack>
               ) : (
-                <ActionForm action={updateProfile} submitLabel="Atualizar dados" onSuccess={() => router.refresh()}>
-                  <EditableField name="full_name" label="Nome" defaultValue={user.full_name} />
-                  <EditableField name="phone" label="Telefone" mask="phone" defaultValue={user.phone} />
-                  {user.oab_number && <EditableField name="oab" label="OAB" defaultValue={user.oab_number} disabled />}
+                <ActionForm action={updateProfile} submitLabel={t.save} onSuccess={() => router.refresh()}>
+                  <EditableField name="full_name" label={t.name} defaultValue={user.full_name} />
+                  <EditableField name="phone" label={t.phone} mask="phone" defaultValue={user.phone} />
+                  {user.oab_number && <EditableField name="oab" label={t.oab} defaultValue={user.oab_number} disabled />}
                   <Typography variant="caption" color="text.secondary">
-                    Para trocar o e-mail ou a OAB, fale com a secretaria do escritório.
+                    {t.emailHint}
                   </Typography>
                 </ActionForm>
               )}
@@ -140,18 +146,18 @@ export function AccountView({ user }: { user: User }) {
             <CardContent sx={{ p: 3 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
                 <LockOutlinedIcon color="action" />
-                <Typography variant="h6">Alterar senha</Typography>
+                <Typography variant="h6">{t.passwordTitle}</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Ao trocar a senha, as sessões nos outros dispositivos são encerradas.
+                {t.passwordHint}
               </Typography>
               {user.is_demo ? (
-                <Alert severity="info">Indisponível na conta de demonstração.</Alert>
+                <Alert severity="info">{t.passwordDemo}</Alert>
               ) : (
-                <ActionForm action={changePassword} submitLabel="Trocar senha">
-                  <PasswordField name="current_password" label="Senha atual" autoComplete="current-password" />
-                  <PasswordField name="new_password" label="Nova senha (mínimo de 8 caracteres)" autoComplete="new-password" />
-                  <PasswordField name="confirm_password" label="Repita a nova senha" autoComplete="new-password" />
+                <ActionForm action={changePassword} submitLabel={t.change}>
+                  <PasswordField name="current_password" label={t.current} autoComplete="current-password" />
+                  <PasswordField name="new_password" label={t.next} autoComplete="new-password" />
+                  <PasswordField name="confirm_password" label={t.repeat} autoComplete="new-password" />
                 </ActionForm>
               )}
             </CardContent>

@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { casesCopy } from '@/content/pages';
 import { api } from '@/lib/api/client';
 import { requireUser } from '@/lib/auth';
+import { getLocale } from '@/lib/locale';
 
 import { CaseDetail } from './CaseDetail';
 
-export async function generateMetadata({ params }: PageProps<'/processos/[id]'>): Promise<Metadata> {
-  return { title: `Processo #${(await params).id}` };
+export async function generateMetadata({ params }: PageProps<'/cases/[id]'>): Promise<Metadata> {
+  return { title: casesCopy[await getLocale()].detail.meta((await params).id) };
 }
 
-export default async function CasePage({ params }: PageProps<'/processos/[id]'>) {
+export default async function CasePage({ params }: PageProps<'/cases/[id]'>) {
   const user = await requireUser();
   const caseId = Number((await params).id);
   if (!Number.isInteger(caseId)) notFound();

@@ -5,7 +5,10 @@ import { ThemeProvider } from '@mui/material/styles';
 import { LicenseInfo } from '@mui/x-license';
 import type { ReactNode } from 'react';
 
-import { theme } from '@/theme';
+import type { Locale } from '@/lib/i18n';
+import { themes } from '@/theme';
+
+import { LocaleProvider } from './LocaleProvider';
 
 import { NotifierProvider } from './Notifier';
 
@@ -13,11 +16,13 @@ import { NotifierProvider } from './Notifier';
 const licenseKey = process.env.NEXT_PUBLIC_MUI_X_LICENSE_KEY;
 if (licenseKey) LicenseInfo.setLicenseKey(licenseKey);
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ locale, children }: { locale: Locale; children: ReactNode }) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <NotifierProvider>{children}</NotifierProvider>
-    </ThemeProvider>
+    <LocaleProvider locale={locale}>
+      <ThemeProvider theme={themes[locale]}>
+        <CssBaseline />
+        <NotifierProvider>{children}</NotifierProvider>
+      </ThemeProvider>
+    </LocaleProvider>
   );
 }

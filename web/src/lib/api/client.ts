@@ -2,6 +2,8 @@ import 'server-only';
 
 import createClient from 'openapi-fetch';
 
+import { LOCALE_TAG } from '@/lib/i18n';
+import { getLocale } from '@/lib/locale';
 import { getSessionToken } from '@/lib/session';
 
 import type { components, paths } from './schema';
@@ -18,12 +20,18 @@ export type Company = Schemas['CompanyOut'];
 export type CompanyDetail = Schemas['CompanyDetail'];
 export type Lawyer = Schemas['LawyerOut'];
 
-/** Typed API client that sends the signed-in user's session token. Server side only. */
+/**
+ * Typed API client that sends the signed-in user's session token and language, so the
+ * API's messages come back in the language on screen. Server side only.
+ */
 export async function api() {
-  const token = await getSessionToken();
+  const [token, locale] = await Promise.all([getSessionToken(), getLocale()]);
   return createClient<paths>({
     baseUrl: API_URL,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: {
+      'Accept-Language': LOCALE_TAG[locale],
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     cache: 'no-store',
   });
 }

@@ -14,8 +14,11 @@ import { useRouter } from 'next/navigation';
 import { deleteCases, updateCase } from '@/actions/cases';
 import { DetailItem, PageHeader, StatusChip } from '@/components/common';
 import { ActionButton, ActionForm } from '@/components/forms';
+import { useLocale } from '@/components/LocaleProvider';
+import { areaLabel, common } from '@/content/common';
+import { casesCopy } from '@/content/pages';
 import type { CaseItem, Role } from '@/lib/api/client';
-import { AREA_LABEL, formatCnpj, formatDate, formatDateTime, formatPhone } from '@/lib/format';
+import { formatCnpj, formatDate, formatDateTime, formatPhone } from '@/lib/format';
 
 import { CaseFields, type CompanyOption, type LawyerOption } from '../CaseFields';
 
@@ -33,19 +36,21 @@ export function CaseDetail({
   lawyers?: LawyerOption[];
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = casesCopy[locale].detail;
   const isStaff = role !== 'client';
-  const mailto = `mailto:${item.lawyer.email}?subject=${encodeURIComponent(`Processo #${item.id}: ${item.title}`)}`;
+  const mailto = `mailto:${item.lawyer.email}?subject=${encodeURIComponent(t.mailSubject(item.id, item.title))}`;
 
   return (
     <>
       <PageHeader
         title={item.title}
-        back={{ href: '/processos', label: 'Processos' }}
+        back={{ href: '/cases', label: casesCopy[locale].meta }}
         subtitle={
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <StatusChip status={item.status} />
             <span>
-              #{item.id} · {AREA_LABEL[item.practice_area]} · aberto em {formatDate(item.created_at)}
+              #{item.id} · {areaLabel[locale][item.practice_area]} · {t.openedOn(formatDate(item.created_at, locale))}
             </span>
           </Stack>
         }
@@ -56,12 +61,12 @@ export function CaseDetail({
           <Card>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                {isStaff ? 'Dados do processo' : 'Andamento'}
+                {isStaff ? t.dataTitle : t.historyTitle}
               </Typography>
               {isStaff ? (
                 <ActionForm
                   action={updateCase.bind(null, item.id)}
-                  submitLabel="Salvar alterações"
+                  submitLabel={t.save}
                   onSuccess={() => router.refresh()}
                 >
                   <CaseFields companies={companies} lawyers={lawyers} current={item} />
@@ -69,10 +74,10 @@ export function CaseDetail({
               ) : (
                 <>
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
-                    {item.description || 'O advogado ainda não registrou uma descrição.'}
+                    {item.description || t.noDescription}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-                    Última atualização em {formatDateTime(item.updated_at)}.
+                    {t.lastUpdate(formatDateTime(item.updated_at, locale))}
                   </Typography>
                 </>
               )}
@@ -85,12 +90,12 @@ export function CaseDetail({
             <Card>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Empresa cliente
+                  {t.company}
                 </Typography>
                 <Stack spacing={1.5}>
-                  <DetailItem label="Razão social">
+                  <DetailItem label={t.legalName}>
                     {isStaff ? (
-                      <NextLink href={`/empresas/${item.company.id}`}>{item.company.legal_name}</NextLink>
+                      <NextLink href={`/companies/${item.company.id}`}>{item.company.legal_name}</NextLink>
                     ) : (
                       item.company.legal_name
                     )}
@@ -103,17 +108,17 @@ export function CaseDetail({
             <Card>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Advogado responsável
+                  {t.lawyer}
                 </Typography>
                 <Stack spacing={1.5}>
-                  <DetailItem label="Nome">{item.lawyer.full_name}</DetailItem>
+                  <DetailItem label={t.name}>{item.lawyer.full_name}</DetailItem>
                   {item.lawyer.oab_number && <DetailItem label="OAB">{item.lawyer.oab_number}</DetailItem>}
-                  <DetailItem label="E-mail">{item.lawyer.email}</DetailItem>
-                  {item.lawyer.phone && <DetailItem label="Telefone">{formatPhone(item.lawyer.phone)}</DetailItem>}
+                  <DetailItem label={t.email}>{item.lawyer.email}</DetailItem>
+                  {item.lawyer.phone && <DetailItem label={t.phone}>{formatPhone(item.lawyer.phone)}</DetailItem>}
                 </Stack>
                 {userId !== item.lawyer.id && (
                   <Button href={mailto} variant="outlined" startIcon={<MailOutlinedIcon />} fullWidth sx={{ mt: 2.5 }}>
-                    Enviar e-mail
+                    {t.sendEmail}
                   </Button>
                 )}
               </CardContent>
@@ -123,19 +128,19 @@ export function CaseDetail({
               <Card sx={{ borderColor: 'error.light' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" gutterBottom>
-                    Excluir processo
+                    {t.deleteTitle}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Remove o processo de vez. Para guardar o histórico, use a situação Arquivado.
+                    {t.deleteHint}
                   </Typography>
                   <ActionButton
                     color="error"
                     variant="outlined"
                     startIcon={<DeleteOutlinedIcon />}
-                    label="Excluir processo"
-                    confirm={{ title: 'Excluir este processo?', body: `"${item.title}" será removido de vez.`, confirmLabel: 'Excluir' }}
+                    label={t.deleteTitle}
+                    confirm={{ title: t.deleteConfirm, body: t.deleteBody(item.title), confirmLabel: common[locale].delete }}
                     action={() => deleteCases([item.id])}
-                    onDone={(state) => state.success && router.push('/processos')}
+                    onDone={(state) => state.success && router.push('/cases')}
                   />
                 </CardContent>
               </Card>
