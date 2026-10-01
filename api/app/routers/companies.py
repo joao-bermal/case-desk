@@ -5,6 +5,7 @@ from app import emails
 from app.demo import enforce_cap, protect_demo_account
 from app.deps import DB, CurrentUser, Secretary, Staff
 from app.errors import FieldError
+from app.i18n import t
 from app.models import (
     ACTIVE_STATUSES,
     FINISHED_STATUSES,
@@ -25,8 +26,6 @@ from app.schemas import (
 from app.security import issue_password_token
 
 router = APIRouter(prefix="/companies", tags=["companies"])
-
-NOT_FOUND = "Empresa não encontrada."
 
 
 def _with_counts() -> Select:
@@ -49,7 +48,7 @@ def _out(row) -> CompanyOut:
 def _get(db: DB, company_id: int) -> Company:
     company = db.get(Company, company_id)
     if company is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("company_not_found"))
     return company
 
 
@@ -58,7 +57,7 @@ def _ensure_cnpj_free(db: DB, cnpj: str, company_id: int | None = None) -> None:
     if company_id is not None:
         query = query.where(Company.id != company_id)
     if db.scalar(query) is not None:
-        raise FieldError("cnpj", "Já existe uma empresa com este CNPJ.")
+        raise FieldError("cnpj", t("cnpj_taken"))
 
 
 def ensure_email_free(db: DB, email: str, user_id: int | None = None) -> None:
@@ -66,7 +65,7 @@ def ensure_email_free(db: DB, email: str, user_id: int | None = None) -> None:
     if user_id is not None:
         query = query.where(User.id != user_id)
     if db.scalar(query) is not None:
-        raise FieldError("email", "Este e-mail já está em uso.")
+        raise FieldError("email", t("email_taken"))
 
 
 @router.get("", response_model=list[CompanyOut])
@@ -89,10 +88,10 @@ def create_company(payload: CompanyIn, _: Secretary, db: DB) -> CompanyOut:
 def get_company(company_id: int, user: CurrentUser, db: DB) -> CompanyDetail:
     # Clients only see their own company, and a miss looks the same as a missing id.
     if user.role is Role.CLIENT and user.company_id != company_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("company_not_found"))
     row = db.execute(_with_counts().where(Company.id == company_id)).one_or_none()
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("company_not_found"))
     detail = CompanyDetail(**_out(row).model_dump())
     if user.role is Role.SECRETARY:
         users = db.scalars(
@@ -123,7 +122,7 @@ def delete_company(company_id: int, _: Secretary, db: DB) -> None:
     if db.scalar(select(Case.id).where(Case.company_id == company_id).limit(1)) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "Esta empresa tem processos. Exclua ou transfira os processos antes.",
+            t("company_has_cases"),
         )
     for user in company.users:
         protect_demo_account(user)
@@ -152,7 +151,7 @@ def invite_client_user(company_id: int, payload: ClientUserIn, _: Secretary, db:
 def remove_client_user(company_id: int, user_id: int, _: Secretary, db: DB) -> None:
     user = db.get(User, user_id)
     if user is None or user.company_id != company_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Acesso não encontrado.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("access_not_found"))
     protect_demo_account(user)
     db.delete(user)
     db.commit()

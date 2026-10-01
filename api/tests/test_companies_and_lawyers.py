@@ -49,7 +49,7 @@ def test_inviting_a_client_user(client, world, outbox):
     assert response.status_code == 201
     assert response.json()["email"] == "duda@alfa.example"
     assert outbox[-1]["to"] == "duda@alfa.example"
-    assert "/nova-senha?token=" in outbox[-1]["body"]
+    assert "/new-password?token=" in outbox[-1]["body"]
 
     taken = client.post(
         f"/companies/{world.company.id}/users",

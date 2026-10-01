@@ -4,14 +4,13 @@ from sqlalchemy import Select, func, select
 from app import emails
 from app.demo import enforce_cap, protect_demo_account
 from app.deps import DB, CurrentUser, Secretary
+from app.i18n import t
 from app.models import ACTIVE_STATUSES, Case, Role, TokenPurpose, User
 from app.routers.companies import ensure_email_free
 from app.schemas import LawyerIn, LawyerOut, LawyerUpdate
 from app.security import end_sessions, issue_password_token
 
 router = APIRouter(prefix="/lawyers", tags=["lawyers"])
-
-NOT_FOUND = "Advogado não encontrado."
 
 
 def _with_counts() -> Select:
@@ -32,7 +31,7 @@ def _out(row) -> LawyerOut:
 def _one(db: DB, lawyer_id: int) -> LawyerOut:
     row = db.execute(_with_counts().where(User.id == lawyer_id)).one_or_none()
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("lawyer_not_found"))
     return _out(row)
 
 
@@ -80,8 +79,7 @@ def update_lawyer(lawyer_id: int, payload: LawyerUpdate, _: Secretary, db: DB) -
         if current.active_cases:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                f"Este advogado tem {current.active_cases} processo(s) em andamento. "
-                "Transfira os processos antes de desativar o acesso.",
+                t("lawyer_has_cases", count=current.active_cases),
             )
         end_sessions(db, lawyer.id)
 

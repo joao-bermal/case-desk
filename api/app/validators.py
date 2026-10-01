@@ -2,6 +2,8 @@
 
 import re
 
+from app.i18n import t
+
 
 def digits(value: str) -> str:
     return re.sub(r"\D", "", value)
@@ -27,9 +29,9 @@ def normalize_cnpj(value: str) -> str:
     """Numeric or alphanumeric CNPJ, stored as 14 uppercase characters."""
     number = re.sub(r"[^0-9A-Za-z]", "", value).upper()
     if not _CNPJ.match(number) or len(set(number)) == 1:
-        raise ValueError("CNPJ inválido.")
+        raise ValueError(t("cnpj_invalid"))
     if cnpj_with_check_digits(number[:12]) != number:
-        raise ValueError("CNPJ inválido: dígitos verificadores não conferem.")
+        raise ValueError(t("cnpj_check_digits"))
     return number
 
 
@@ -41,7 +43,7 @@ def normalize_phone(value: str | None) -> str | None:
     if number.startswith("55") and len(number) in (12, 13):
         number = number[2:]
     if len(number) not in (10, 11) or number[0] == "0":
-        raise ValueError("Telefone inválido: use DDD e número.")
+        raise ValueError(t("phone_invalid"))
     return number
 
 
@@ -54,7 +56,7 @@ def normalize_oab(value: str | None) -> str | None:
         return None
     match = _OAB.match(value.strip().upper())
     if not match:
-        raise ValueError("Número da OAB inválido. Exemplo: OAB/SP 123.456")
+        raise ValueError(t("oab_invalid"))
     state, thousands, units = match.groups()
     return f"OAB/{state} {thousands}.{units}"
 
@@ -62,5 +64,5 @@ def normalize_oab(value: str | None) -> str | None:
 def normalize_name(value: str) -> str:
     cleaned = " ".join(value.split())
     if len(cleaned) < 2:
-        raise ValueError("Informe o nome.")
+        raise ValueError(t("name_required"))
     return cleaned

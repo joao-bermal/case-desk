@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.i18n import t
 from app.models import AuthSession, Role, User
 from app.security import find_session
 
@@ -22,7 +23,7 @@ def get_auth_session(
     if session is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            "Sessão expirada. Entre novamente.",
+            t("session_expired"),
             headers={"WWW-Authenticate": "Bearer"},
         )
     return session
@@ -41,7 +42,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def require_roles(*roles: Role) -> Callable[[User], User]:
     def check(user: CurrentUser) -> User:
         if user.role not in roles:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Seu perfil não tem acesso a esta ação.")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, t("forbidden"))
         return user
 
     return check

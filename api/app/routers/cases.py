@@ -8,7 +8,8 @@ from sqlalchemy import ColumnElement, delete, func, or_, select
 from app.demo import enforce_cap
 from app.deps import DB, CurrentUser, Secretary, Staff
 from app.errors import FieldError
-from app.labels import PRACTICE_AREA, STATUS, format_cnpj
+from app.i18n import t
+from app.labels import area_label, csv_header, date_format, format_cnpj, status_label
 from app.models import (
     ACTIVE_STATUSES,
     FINISHED_STATUSES,
@@ -22,7 +23,6 @@ from app.schemas import BulkDeleted, CaseCounts, CaseIn, CaseList, CaseOut, Case
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
-NOT_FOUND = "Processo não encontrado."
 UNPROCESSABLE = 422
 
 
@@ -74,19 +74,19 @@ SearchFilter = Annotated[str | None, Query(max_length=100)]
 def _get_scoped(db: DB, user: User, case_id: int) -> Case:
     case = db.scalar(select(Case).where(Case.id == case_id, *_scope(user)))
     if case is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("case_not_found"))
     return case
 
 
 def _check_company(db: DB, company_id: int) -> None:
     if db.get(Company, company_id) is None:
-        raise FieldError("company_id", "Empresa não encontrada.", UNPROCESSABLE)
+        raise FieldError("company_id", t("company_not_found"), UNPROCESSABLE)
 
 
 def _check_lawyer(db: DB, lawyer_id: int) -> None:
     lawyer = db.get(User, lawyer_id)
     if lawyer is None or lawyer.role is not Role.LAWYER or not lawyer.is_active:
-        raise FieldError("lawyer_id", "Escolha um advogado ativo.", UNPROCESSABLE)
+        raise FieldError("lawyer_id", t("lawyer_inactive"), UNPROCESSABLE)
 
 
 @router.get("", response_model=CaseList)
@@ -129,32 +129,19 @@ def export_cases(
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";")
-    writer.writerow(
-        [
-            "ID",
-            "Título",
-            "Área",
-            "Status",
-            "Empresa",
-            "CNPJ",
-            "Advogado",
-            "Criado em",
-            "Atualizado em",
-            "Descrição",
-        ]
-    )
+    writer.writerow(csv_header())
     for case in cases:
         writer.writerow(
             [
                 case.id,
                 case.title,
-                PRACTICE_AREA[case.practice_area],
-                STATUS[case.status],
+                area_label(case.practice_area),
+                status_label(case.status),
                 case.company.legal_name,
                 format_cnpj(case.company.cnpj),
                 case.lawyer.full_name,
-                case.created_at.strftime("%d/%m/%Y"),
-                case.updated_at.strftime("%d/%m/%Y"),
+                case.created_at.strftime(date_format()),
+                case.updated_at.strftime(date_format()),
                 case.description,
             ]
         )
@@ -162,7 +149,7 @@ def export_cases(
     return Response(
         content="﻿" + buffer.getvalue(),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="processos.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="cases.csv"'},
     )
 
 
@@ -172,12 +159,10 @@ def create_case(payload: CaseIn, user: Staff, db: DB) -> Case:
     data = payload.model_dump()
     if user.role is Role.LAWYER:
         if data["lawyer_id"] not in (None, user.id):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Advogados só abrem processos em seu próprio nome."
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, t("lawyer_own_cases"))
         data["lawyer_id"] = user.id
     elif data["lawyer_id"] is None:
-        raise FieldError("lawyer_id", "Escolha o advogado responsável.", UNPROCESSABLE)
+        raise FieldError("lawyer_id", t("lawyer_required"), UNPROCESSABLE)
     _check_company(db, data["company_id"])
     _check_lawyer(db, data["lawyer_id"])
 
@@ -200,9 +185,7 @@ def update_case(case_id: int, payload: CaseUpdate, user: Staff, db: DB) -> Case:
 
     if "lawyer_id" in changes and changes["lawyer_id"] != case.lawyer_id:
         if user.role is not Role.SECRETARY:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Só a secretaria pode transferir um processo."
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, t("transfer_secretary"))
         _check_lawyer(db, changes["lawyer_id"])
     if "company_id" in changes and changes["company_id"] != case.company_id:
         _check_company(db, changes["company_id"])

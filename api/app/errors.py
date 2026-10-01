@@ -1,18 +1,20 @@
-"""Validation errors as {field: message} in Portuguese, ready to show next to form fields."""
+"""Validation errors as {field: message} in the request language, ready for form fields."""
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-_MESSAGES = {
-    "missing": "Campo obrigatório.",
-    "string_too_short": "Mínimo de {min_length} caracteres.",
-    "string_too_long": "Máximo de {max_length} caracteres.",
-    "enum": "Opção inválida.",
-    "int_parsing": "Informe um número.",
-    "int_type": "Informe um número.",
-    "bool_parsing": "Valor inválido.",
-    "string_type": "Valor inválido.",
+from app.i18n import t
+
+_KEYS = {
+    "missing": "missing",
+    "string_too_short": "string_too_short",
+    "string_too_long": "string_too_long",
+    "enum": "enum",
+    "int_parsing": "number",
+    "int_type": "number",
+    "bool_parsing": "invalid",
+    "string_type": "invalid",
 }
 
 
@@ -21,12 +23,12 @@ def _message(error: dict) -> str:
     if kind == "value_error":
         message = str(error.get("msg", ""))
         if "email" in message.lower():
-            return "E-mail inválido."
+            return t("email_invalid")
         return message.removeprefix("Value error, ")
-    template = _MESSAGES.get(kind)
-    if template:
-        return template.format(**error.get("ctx", {}))
-    return "Valor inválido."
+    key = _KEYS.get(kind)
+    if key:
+        return t(key, **error.get("ctx", {}))
+    return t("invalid")
 
 
 def _field(location: tuple) -> str:
@@ -41,7 +43,7 @@ async def validation_exception_handler(_: Request, exc: Exception) -> JSONRespon
         errors.setdefault(_field(tuple(error.get("loc", ()))), _message(error))
     return JSONResponse(
         status_code=422,
-        content={"detail": "Confira os campos destacados.", "errors": errors},
+        content={"detail": t("check_fields"), "errors": errors},
     )
 
 

@@ -7,6 +7,7 @@ from app import emails
 from app.config import get_settings
 from app.demo import protect_demo_account
 from app.deps import DB, CurrentSession, CurrentUser
+from app.i18n import t
 from app.models import TokenPurpose, User
 from app.schemas import (
     DemoLoginIn,
@@ -32,8 +33,6 @@ from app.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-INVALID_LOGIN = "E-mail ou senha inválidos."
-
 
 def _session_out(db: DB, user: User) -> SessionOut:
     token, session = create_session(db, user)
@@ -49,7 +48,7 @@ def login(payload: LoginIn, db: DB) -> SessionOut:
     if user is not None and user.locked_until is not None and user.locked_until > now():
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "Muitas tentativas seguidas. Tente de novo em alguns minutos.",
+            t("locked"),
         )
 
     password_ok = verify_password(user.password_hash if user else None, payload.password)
@@ -60,7 +59,7 @@ def login(payload: LoginIn, db: DB) -> SessionOut:
                 user.locked_until = now() + timedelta(minutes=settings.lockout_minutes)
                 user.failed_logins = 0
             db.commit()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, INVALID_LOGIN)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, t("invalid_login"))
 
     user.failed_logins = 0
     user.locked_until = None
@@ -85,7 +84,7 @@ def demo_login(payload: DemoLoginIn, db: DB) -> SessionOut:
     if user is None:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "A demo está sendo reiniciada. Tente de novo em instantes.",
+            t("demo_restarting"),
         )
     return _session_out(db, user)
 
@@ -118,7 +117,7 @@ def change_password(payload: PasswordChange, session: CurrentSession, db: DB) ->
     user = session.user
     protect_demo_account(user)
     if not verify_password(user.password_hash, payload.current_password):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A senha atual não confere.")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, t("wrong_current_password"))
     user.password_hash = hash_password(payload.new_password)
     # Other devices signed in with the old password are signed out.
     end_sessions(db, user.id, keep=session)
@@ -128,9 +127,7 @@ def change_password(payload: PasswordChange, session: CurrentSession, db: DB) ->
 @router.post("/password-reset", status_code=status.HTTP_202_ACCEPTED, response_model=Message)
 def request_password_reset(payload: PasswordResetRequest, db: DB) -> Message:
     # Same answer whether or not the email exists, so the form cannot list accounts.
-    answer = Message(
-        detail="Se o e-mail estiver cadastrado, você vai receber um link para criar uma nova senha."
-    )
+    answer = Message(detail=t("reset_sent"))
     user = db.scalar(select(User).where(User.email == payload.email))
     if user is None or not user.is_active or user.is_demo:
         return answer
@@ -146,9 +143,7 @@ def confirm_password_reset(payload: PasswordResetConfirm, db: DB) -> SessionOut:
     """Sets the password from an invite or reset link and signs the person in."""
     user = redeem_password_token(db, payload.token)
     if user is None:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Este link é inválido ou expirou. Peça um novo."
-        )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, t("link_invalid"))
     user.password_hash = hash_password(payload.new_password)
     user.failed_logins = 0
     user.locked_until = None

@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
 
 from app.deps import DB
 from app.errors import FieldError, field_error_handler, validation_exception_handler
+from app.i18n import current_lang, parse_accept_language
 from app.routers import auth, cases, companies, demo, lawyers, users
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,17 @@ app = FastAPI(
         "Authenticate with `POST /auth/login` and send the token as `Authorization: Bearer`."
     ),
 )
+
+
+@app.middleware("http")
+async def request_language(request: Request, call_next):
+    """Messages follow the caller's Accept-Language: English when asked, Portuguese otherwise."""
+    token = current_lang.set(parse_accept_language(request.headers.get("accept-language")))
+    try:
+        return await call_next(request)
+    finally:
+        current_lang.reset(token)
+
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(FieldError, field_error_handler)

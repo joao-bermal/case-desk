@@ -37,7 +37,7 @@ def create_user(role: Role, name: str, email: str) -> None:
         db.commit()
     # Printed instead of emailed: this command bootstraps the first secretary.
     print(f"Created {role.value} {email}. Set the password at:")
-    print(f"{get_settings().web_base_url}/nova-senha?token={token}")
+    print(f"{get_settings().web_base_url}/new-password?token={token}")
 
 
 def main() -> None:

@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from app import emails
 from app.demo import protect_demo_account
 from app.deps import DB, Secretary
+from app.i18n import t
 from app.models import TokenPurpose, User
 from app.schemas import Message
 from app.security import issue_password_token
@@ -15,14 +16,14 @@ def resend_invite(user_id: int, _: Secretary, db: DB) -> Message:
     """Sends a fresh invite link to a lawyer or client who has not set a password yet."""
     user = db.get(User, user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pessoa não encontrada.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, t("person_not_found"))
     protect_demo_account(user)
     if user.has_password:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "Esta pessoa já criou a senha. Se esqueceu, ela pode usar o 'Esqueci a senha'.",
+            t("password_already_set"),
         )
     token = issue_password_token(db, user, TokenPurpose.INVITE)
     db.commit()
     emails.send_invite(user, token)
-    return Message(detail=f"Convite reenviado para {user.email}.")
+    return Message(detail=t("invite_resent", email=user.email))
