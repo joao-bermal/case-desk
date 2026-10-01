@@ -21,9 +21,9 @@ Case Desk started in 2022 as my college project, under a name the course assigne
 | Anyone could sign up as the secretary, which was the admin role | Access by invite only: the secretary invites lawyers and client users |
 | Cases linked to companies and lawyers by CNPJ and CPF strings | Integer foreign keys with explicit `RESTRICT` and `CASCADE` rules |
 | Credentials written in the source code | Settings from environment variables |
-| Create React App, Electron, Material UI v4 and v5 side by side | Next.js 16 (App Router, Server Actions), Tailwind CSS 4, a typed API client generated from the OpenAPI schema |
+| Create React App, Electron, Material UI v4 and v5 side by side | Next.js 16 (App Router, Server Actions) with MUI v9 and MUI X DataGrid Pro, and a typed API client generated from the OpenAPI schema |
 | Unpinned `requirements.txt` and deleted migrations | `uv` with a lockfile and Alembic migrations that the test suite runs down and up |
-| No tests | 112 pytest tests against a real Postgres |
+| No tests | 117 pytest tests against a real Postgres |
 
 ## Roles
 
@@ -36,6 +36,8 @@ Case Desk started in 2022 as my college project, under a name the course assigne
 
 A record outside a user's scope answers 404, the same as a record that does not exist, so ids reveal nothing.
 
+The lists are MUI X DataGrid Pro tables, like the 2022 version's grids: double click a cell to edit it (title, practice area, status, company, lawyer), filter and sort any column, choose columns and density, search, export to CSV for Excel, expand a row to read the case history, and select rows to delete them at once.
+
 ## How it works
 
 ```
@@ -47,7 +49,7 @@ Browser ──> Next.js (web/)            ──> FastAPI (api/)        ──> 
 
 1. The sign in form posts to a Next.js server action, which calls `POST /auth/login` and stores the returned token in an httpOnly, `SameSite=Lax` cookie. Browser code never sees the token.
 2. Pages are server components. They read the cookie and call the API with `Authorization: Bearer`, through a client typed from the API's OpenAPI schema.
-3. The API resolves the session, loads the user, and scopes every query to what that role may see. Forms send their changes through server actions, and the API answers validation errors as `{field: message}` in Portuguese, which the forms show next to each field.
+3. The API resolves the session, loads the user, and scopes every query to what that role may see. Forms and the DataGrid's inline edits send their changes through server actions, and the API answers validation errors as `{field: message}` in Portuguese, which the forms show next to each field and the grid shows in a snackbar.
 4. Invites and password resets email a single use link to `/nova-senha`. Locally, Mailpit catches the emails.
 
 ## Stack
@@ -55,7 +57,7 @@ Browser ──> Next.js (web/)            ──> FastAPI (api/)        ──> 
 | Layer | Tech |
 |---|---|
 | API | Python 3.12, FastAPI, Pydantic 2, SQLAlchemy 2 (typed ORM), Alembic, psycopg 3, argon2-cffi |
-| Web | Next.js 16 (App Router, Server Actions, `proxy.ts`), React 19, TypeScript, Tailwind CSS 4, openapi-fetch and openapi-typescript |
+| Web | Next.js 16 (App Router, Server Actions, `proxy.ts`), React 19, TypeScript, MUI v9, MUI X DataGrid Pro, openapi-fetch and openapi-typescript |
 | Data | Postgres 17 locally, any managed Postgres in production |
 | Tooling | uv, Ruff, pytest, ESLint, Docker Compose, Mailpit |
 | Hosting | Vercel: one project for the API (Python runtime) and one for the web app, plus Vercel Cron for the demo reset |
@@ -68,6 +70,7 @@ api/migrations/          Alembic migrations
 api/tests/               pytest suite, including the permission matrix
 api/scripts/             Vercel build step and the OpenAPI export
 web/src/app/             Next.js routes (Portuguese URLs: /processos, /empresas, /advogados)
+web/src/components/      MUI building blocks: app shell, forms bound to server actions, grid toolbar
 web/src/actions/         Server actions that call the API
 web/src/lib/api/         Generated OpenAPI schema and types, typed client
 docs/TDD.md              Technical design document
@@ -122,7 +125,7 @@ Two Vercel projects from this repository:
 | Project | Root directory | Environment |
 |---|---|---|
 | API | `api` | `DATABASE_URL` (pooled connection), `WEB_BASE_URL`, `DEMO_MODE`, `CRON_SECRET`, optional `SMTP_*` |
-| Web | `web` | `API_URL` (the API project's URL), `DEMO_MODE` |
+| Web | `web` | `API_URL` (the API project's URL), `DEMO_MODE`, `NEXT_PUBLIC_MUI_X_LICENSE_KEY` (set before building: Next.js inlines it) |
 
 Production builds of the API run `alembic upgrade head` and, in demo mode, load the demo data into an empty database (`api/scripts/vercel_build.py`). Preview builds never migrate. Vercel Cron calls `GET /demo/reset` daily at 06:00 UTC with `CRON_SECRET` as a bearer token.
 

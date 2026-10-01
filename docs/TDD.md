@@ -28,6 +28,7 @@ Browser ──> Next.js web app ──> FastAPI ──> Postgres
 
 - **The API owns every rule.** Authentication, authorization, validation and data integrity live in FastAPI and Postgres. The web app holds no business rules beyond showing or hiding what a role cannot use.
 - **Backend for frontend.** Only the Next.js server talks to the API. The browser gets HTML from server components and submits forms to server actions, so the session token never reaches browser JavaScript and the API needs no CORS.
+- **Interface.** MUI v9 with MUI X DataGrid Pro, themed in `web/src/theme.ts` (Portuguese locale for both). Pages are server components that fetch from the API and hand plain data to one client view per page; grid edits call server actions such as `patchCase`, which answer with the saved row or a message for the snackbar.
 - **Typed contract.** `api/scripts/export_openapi.py` writes the OpenAPI schema into `web/src/lib/api/openapi.json`, and `openapi-typescript` turns it into `schema.d.ts`. The web app calls the API through `openapi-fetch`, so a renamed field breaks the web build instead of a page at runtime.
 
 ### Why FastAPI and Next.js instead of one framework
@@ -116,6 +117,7 @@ Vercel Services (one project with both runtimes on a shared domain) would remove
 | Demo | Off by default, account protection, caps, cron secret | `tests/test_demo.py` |
 | Validators | CNPJ (numeric and alphanumeric), phone, OAB | `tests/test_validators.py` |
 | Web | Types, lint, production build | `npm run typecheck`, `npm run lint`, `npm run build` |
+| Bulk delete | `DELETE /cases?ids=...` for the secretary, skipping unknown ids | `tests/test_cases.py`, permission matrix |
 
 Tests run against Postgres, not SQLite, because the constraints, `ILIKE` and `TRUNCATE ... CASCADE` are part of the behaviour under test.
 
