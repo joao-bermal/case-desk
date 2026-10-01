@@ -2,7 +2,7 @@
 
 Case management for a Brazilian law office. The secretary registers client companies and lawyers and assigns the cases, each lawyer works on the cases in their name, and the people at each client company follow their own cases. A FastAPI service owns the data and every permission check; a Next.js app is the interface.
 
-**Live demo:** _link after the first deploy_. Pick a role on the sign in page; the fictional data resets every day.
+**Live demo:** [casedesk.joaosantaniello.com](https://casedesk.joaosantaniello.com). Pick a role on the sign in page; the fictional data resets every day. The API and its Swagger UI are public at [case-desk-api.vercel.app/docs](https://case-desk-api.vercel.app/docs).
 
 **Design:** [docs/TDD.md](docs/TDD.md) covers the architecture, data model, authentication, the permission rules, the demo mode, deployment and testing.
 
@@ -128,7 +128,7 @@ Production builds of the API run `alembic upgrade head` and, in demo mode, load 
 
 ## Status
 
-A working, tested application with a public demo, not a product with paying users. Before a real office relied on it, it would still need:
+A working, tested application with a public demo (deployed on Vercel with a Neon Postgres database, October 2026), not a product with paying users. Before a real office relied on it, it would still need:
 
 - **Email delivery.** A transactional provider with SPF and DKIM. Without SMTP settings the API only logs that an email was due.
 - **Rate limiting at the edge.** Sign in locks an account after 5 failures, but there is no per IP limit.
