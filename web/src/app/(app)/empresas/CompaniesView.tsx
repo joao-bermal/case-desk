@@ -1,0 +1,179 @@
+'use client';
+
+import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import { DataGridPro, GridActionsCellItem, type GridColDef } from '@mui/x-data-grid-pro';
+import { useRouter } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
+
+import { createCompany, deleteCompany, patchCompany } from '@/actions/companies';
+import { PageHeader } from '@/components/common';
+import { ActionForm, ConfirmDialog, FormDialog } from '@/components/forms';
+import { GridToolbar } from '@/components/GridToolbar';
+import { useNotify } from '@/components/Notifier';
+import { gridLocale } from '@/theme';
+import type { Company } from '@/lib/api/client';
+import { formatCnpj, formatPhone } from '@/lib/format';
+
+import { CompanyFields } from './CompanyFields';
+
+const EDITABLE = ['legal_name', 'cnpj', 'email', 'phone'] as const;
+
+export function CompaniesView({ companies, canEdit }: { companies: Company[]; canEdit: boolean }) {
+  const router = useRouter();
+  const notify = useNotify();
+  const [rows, setRows] = useState(companies);
+  // Fresh data from the server (after router.refresh) replaces the local rows.
+  const [source, setSource] = useState(companies);
+  if (source !== companies) {
+    setSource(companies);
+    setRows(companies);
+  }
+  const [creating, setCreating] = useState(false);
+  const [toDelete, setToDelete] = useState<Company | null>(null);
+
+  const processRowUpdate = useCallback(
+    async (newRow: Company, oldRow: Company) => {
+      const changes: Record<string, string | null> = {};
+      for (const field of EDITABLE) {
+        if ((newRow[field] ?? '') !== (oldRow[field] ?? '')) changes[field] = newRow[field] || null;
+      }
+      if (Object.keys(changes).length === 0) return oldRow;
+      const result = await patchCompany(newRow.id, changes);
+      if (!result.row) throw new Error(result.error ?? 'Não foi possível salvar.');
+      notify('Empresa atualizada.');
+      return result.row;
+    },
+    [notify],
+  );
+
+  const columns = useMemo<GridColDef<Company>[]>(
+    () => [
+      { field: 'legal_name', headerName: 'Razão social', flex: 1.4, minWidth: 240, editable: canEdit },
+      {
+        field: 'cnpj',
+        headerName: 'CNPJ',
+        width: 190,
+        editable: canEdit,
+        valueFormatter: (value: string) => formatCnpj(value),
+      },
+      { field: 'email', headerName: 'E-mail', flex: 1, minWidth: 220, editable: canEdit },
+      {
+        field: 'phone',
+        headerName: 'Telefone',
+        width: 160,
+        editable: canEdit,
+        valueFormatter: (value: string | null) => formatPhone(value),
+      },
+      { field: 'active_cases', headerName: 'Em andamento', type: 'number', width: 130 },
+      { field: 'finished_cases', headerName: 'Finalizados', type: 'number', width: 120 },
+      {
+        field: 'actions',
+        type: 'actions',
+        width: canEdit ? 120 : 90,
+        getActions: ({ row }) => [
+          <GridActionsCellItem
+            key="open"
+            icon={<OpenInNewIcon fontSize="small" />}
+            label="Abrir empresa"
+            onClick={() => router.push(`/empresas/${row.id}`)}
+          />,
+          <GridActionsCellItem
+            key="cases"
+            icon={<GavelOutlinedIcon fontSize="small" />}
+            label="Ver processos"
+            onClick={() => router.push(`/processos?empresa=${row.id}`)}
+          />,
+          ...(canEdit
+            ? [
+                <GridActionsCellItem
+                  key="delete"
+                  icon={<DeleteOutlinedIcon fontSize="small" />}
+                  label="Excluir"
+                  onClick={() => setToDelete(row)}
+                />,
+              ]
+            : []),
+        ],
+      },
+    ],
+    [canEdit, router],
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="Empresas clientes"
+        subtitle={
+          canEdit
+            ? 'Clique duas vezes numa célula para editar. Abra a empresa para dar acesso às pessoas dela.'
+            : 'Contatos das empresas atendidas pelo escritório.'
+        }
+        actions={
+          canEdit && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+              Nova empresa
+            </Button>
+          )
+        }
+      />
+      <Box sx={{ height: { xs: 560, md: 'calc(100vh - 220px)' }, minHeight: 460 }}>
+        <DataGridPro
+          rows={rows}
+          columns={columns}
+          showToolbar
+          slots={{ toolbar: GridToolbar }}
+          slotProps={{ toolbar: { exportName: 'empresas' } }}
+          disableRowSelectionOnClick
+          processRowUpdate={processRowUpdate}
+          onProcessRowUpdateError={(error: Error) => notify(error.message, 'error')}
+          initialState={{ sorting: { sortModel: [{ field: 'legal_name', sort: 'asc' }] }, pinnedColumns: { right: ['actions'] } }}
+          localeText={gridLocale({ noRowsLabel: 'Nenhuma empresa cadastrada.' })}
+        />
+      </Box>
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        title={`Excluir ${toDelete?.legal_name}?`}
+        body="Os acessos das pessoas da empresa também são removidos. Empresas com processos não podem ser excluídas."
+        confirmLabel="Excluir"
+        action={() => deleteCompany(toDelete!.id)}
+        onDone={(state) => {
+          if (!state.success || !toDelete) return;
+          setRows((current) => current.filter((r) => r.id !== toDelete.id));
+          router.refresh();
+        }}
+      />
+
+      {canEdit && (
+        <FormDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          title="Nova empresa"
+          description="Depois do cadastro, abra a empresa para convidar as pessoas que vão acompanhar os processos."
+        >
+          <ActionForm
+            action={createCompany}
+            submitLabel="Cadastrar empresa"
+            onSuccess={() => {
+              setCreating(false);
+              router.refresh();
+            }}
+            secondary={
+              <Button color="inherit" onClick={() => setCreating(false)}>
+                Cancelar
+              </Button>
+            }
+          >
+            <CompanyFields />
+          </ActionForm>
+        </FormDialog>
+      )}
+    </>
+  );
+}

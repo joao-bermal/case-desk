@@ -1,9 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 
-import { api, type Schemas } from '@/lib/api/client';
+import { api, type CaseItem, type Schemas } from '@/lib/api/client';
 import { apiError, formValues, type FormState } from '@/lib/forms';
 
 const id = (value: string | undefined) => (value ? Number(value) : undefined);
@@ -26,8 +25,8 @@ export async function createCase(_: FormState, form: FormData): Promise<FormStat
     body: caseBody(values) as Schemas['CaseIn'],
   });
   if (!data) return apiError(error, values);
-  revalidatePath('/processos');
-  redirect(`/processos/${data.id}`);
+  revalidatePath('/processos', 'layout');
+  return { success: `Processo #${data.id} aberto.` };
 }
 
 export async function updateCase(caseId: number, _: FormState, form: FormData): Promise<FormState> {
@@ -41,11 +40,28 @@ export async function updateCase(caseId: number, _: FormState, form: FormData): 
   return { success: 'Processo atualizado.' };
 }
 
-export async function deleteCase(caseId: number): Promise<FormState> {
-  const { error, response } = await (await api()).DELETE('/cases/{case_id}', {
+/** Inline edit from the grid: one or more fields, answered with the saved case. */
+export async function patchCase(
+  caseId: number,
+  changes: Schemas['CaseUpdate'],
+): Promise<{ row?: CaseItem; error?: string }> {
+  const { data, error } = await (await api()).PATCH('/cases/{case_id}', {
     params: { path: { case_id: caseId } },
+    body: changes,
   });
-  if (!response.ok) return apiError(error);
-  revalidatePath('/processos');
-  redirect('/processos');
+  if (!data) {
+    const state = apiError(error);
+    return { error: Object.values(state.fieldErrors ?? {})[0] ?? state.error };
+  }
+  revalidatePath('/processos', 'layout');
+  return { row: data };
+}
+
+export async function deleteCases(ids: number[]): Promise<FormState> {
+  const { data, error } = await (await api()).DELETE('/cases', { params: { query: { ids } } });
+  if (!data) return apiError(error);
+  revalidatePath('/processos', 'layout');
+  return {
+    success: data.deleted === 1 ? 'Processo excluído.' : `${data.deleted} processos excluídos.`,
+  };
 }

@@ -1,9 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 
-import { api } from '@/lib/api/client';
+import { api, type Company, type Schemas } from '@/lib/api/client';
 import { apiError, formValues, optional, type FormState } from '@/lib/forms';
 
 function companyBody(values: Record<string, string>) {
@@ -15,12 +14,17 @@ function companyBody(values: Record<string, string>) {
   };
 }
 
+function firstError(error: unknown) {
+  const state = apiError(error);
+  return Object.values(state.fieldErrors ?? {})[0] ?? state.error;
+}
+
 export async function createCompany(_: FormState, form: FormData): Promise<FormState> {
   const values = formValues(form);
   const { data, error } = await (await api()).POST('/companies', { body: companyBody(values) });
   if (!data) return apiError(error, values);
-  revalidatePath('/empresas');
-  redirect(`/empresas/${data.id}`);
+  revalidatePath('/empresas', 'layout');
+  return { success: `${data.legal_name} cadastrada.` };
 }
 
 export async function updateCompany(companyId: number, _: FormState, form: FormData): Promise<FormState> {
@@ -35,13 +39,28 @@ export async function updateCompany(companyId: number, _: FormState, form: FormD
   return { success: 'Empresa atualizada.' };
 }
 
+/** Inline edit from the grid, answered with the saved company. */
+export async function patchCompany(
+  companyId: number,
+  changes: Schemas['CompanyUpdate'],
+): Promise<{ row?: Company; error?: string }> {
+  const { data, error } = await (await api()).PATCH('/companies/{company_id}', {
+    params: { path: { company_id: companyId } },
+    body: changes,
+  });
+  if (!data) return { error: firstError(error) };
+  revalidatePath('/empresas', 'layout');
+  revalidatePath('/processos', 'layout');
+  return { row: data };
+}
+
 export async function deleteCompany(companyId: number): Promise<FormState> {
   const { error, response } = await (await api()).DELETE('/companies/{company_id}', {
     params: { path: { company_id: companyId } },
   });
   if (!response.ok) return apiError(error);
-  revalidatePath('/empresas');
-  redirect('/empresas');
+  revalidatePath('/empresas', 'layout');
+  return { success: 'Empresa excluída.' };
 }
 
 export async function inviteClientUser(companyId: number, _: FormState, form: FormData): Promise<FormState> {
@@ -61,7 +80,7 @@ export async function removeClientUser(companyId: number, userId: number): Promi
   });
   if (!response.ok) return apiError(error);
   revalidatePath(`/empresas/${companyId}`);
-  return {};
+  return { success: 'Acesso removido.' };
 }
 
 export async function resendInvite(userId: number, revalidate: string): Promise<FormState> {
