@@ -113,3 +113,20 @@ def test_csv_export_opens_in_excel(client, world):
     assert len(lines) == 2  # header plus the client's single case
     assert "Ação trabalhista da Alfa;Trabalhista;Em andamento;Alfa Comércio Ltda" in lines[1]
     assert "Beta" not in text
+
+
+def test_bulk_delete_removes_the_selected_cases(client, world, db):
+    response = client.delete(
+        "/cases",
+        params=[("ids", world.case.id), ("ids", world.other_case.id), ("ids", 9999)],
+        headers=world.auth("secretary"),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+    assert client.get("/cases", headers=world.auth("secretary")).json()["items"] == []
+
+
+def test_bulk_delete_needs_ids(client, world):
+    response = client.delete("/cases", headers=world.auth("secretary"))
+    assert response.status_code == 422
+    assert response.json()["errors"] == {"ids": "Campo obrigatório."}

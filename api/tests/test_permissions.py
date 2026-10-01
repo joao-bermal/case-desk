@@ -35,6 +35,9 @@ MATRIX = [
     ("secretary", "DELETE", "/cases/{case}", None, 204),
     ("lawyer", "DELETE", "/cases/{case}", None, 403),
     ("client", "DELETE", "/cases/{case}", None, 403),
+    ("secretary", "DELETE", "/cases?ids={case}&ids={other_case}", None, 200),
+    ("lawyer", "DELETE", "/cases?ids={case}", None, 403),
+    ("client", "DELETE", "/cases?ids={case}", None, 403),
     # Companies
     ("secretary", "GET", "/companies", None, 200),
     ("lawyer", "GET", "/companies", None, 200),

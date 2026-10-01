@@ -3,7 +3,7 @@ import io
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, delete, func, or_, select
 
 from app.demo import enforce_cap
 from app.deps import DB, CurrentUser, Secretary, Staff
@@ -18,7 +18,7 @@ from app.models import (
     Role,
     User,
 )
-from app.schemas import CaseCounts, CaseIn, CaseList, CaseOut, CaseUpdate
+from app.schemas import BulkDeleted, CaseCounts, CaseIn, CaseList, CaseOut, CaseUpdate
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -212,6 +212,18 @@ def update_case(case_id: int, payload: CaseUpdate, user: Staff, db: DB) -> Case:
     db.commit()
     db.refresh(case)
     return case
+
+
+@router.delete("", response_model=BulkDeleted)
+def delete_cases(
+    user: Secretary,
+    db: DB,
+    ids: Annotated[list[int], Query(min_length=1, max_length=500)],
+) -> BulkDeleted:
+    """Deletes several cases at once (the grid's bulk action). Unknown ids are skipped."""
+    result = db.execute(delete(Case).where(Case.id.in_(ids), *_scope(user)))
+    db.commit()
+    return BulkDeleted(deleted=result.rowcount)
 
 
 @router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT)

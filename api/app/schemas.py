@@ -214,6 +214,10 @@ class Message(BaseModel):
     detail: str
 
 
+class BulkDeleted(BaseModel):
+    deleted: int
+
+
 class ValidationErrorOut(BaseModel):
     detail: str
     errors: dict[str, str]
