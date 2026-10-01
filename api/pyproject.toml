@@ -1,0 +1,45 @@
+[project]
+name = "case-desk-api"
+version = "2.0.0"
+description = "Case Desk API: case management for a law office, with role-based access."
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16",
+    "argon2-cffi>=25.1",
+    "fastapi>=0.118",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.10",
+    "pydantic[email]>=2.11",
+    "sqlalchemy>=2.0.41",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "pytest>=8.4",
+    "ruff>=0.12",
+    "uvicorn[standard]>=0.35",
+]
+
+[tool.vercel]
+entrypoint = "app.main:app"
+
+[tool.vercel.scripts]
+build = "python scripts/vercel_build.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["B008"]  # FastAPI's Depends() in defaults is the intended pattern
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "E501"]
+"tests/conftest.py" = ["E402"]
+"migrations/versions/**" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

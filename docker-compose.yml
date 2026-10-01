@@ -1,0 +1,30 @@
+name: case-desk
+
+# Local services for development and tests. The API and the web app run on the host.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: casedesk
+      POSTGRES_PASSWORD: casedesk
+      POSTGRES_DB: casedesk
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./scripts/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casedesk"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # Catches invite and password reset emails: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  pgdata:

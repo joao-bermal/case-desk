@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/main.py": {
+      "excludeFiles": "{tests/**,migrations/**,scripts/**,.venv/**,.ruff_cache/**,.pytest_cache/**}"
+    }
+  },
+  "crons": [{ "path": "/demo/reset", "schedule": "0 6 * * *" }]
+}

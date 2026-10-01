@@ -1,0 +1,26 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Platforms
+.vercel/
+
+# Local scratch work
+scratch/
+
+# Local editor and agent settings
+.claude/
