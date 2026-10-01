@@ -29,10 +29,13 @@ class TimestampMixin:
 
 
 def _make_engine():
-    # On Vercel each function instance is short lived and the database URL points at a
-    # pooler, so keeping connections open in the function would only exhaust it.
-    pool = {"poolclass": NullPool} if os.environ.get("VERCEL") else {"pool_pre_ping": True}
-    return create_engine(get_settings().database_url, **pool)
+    url = get_settings().database_url
+    if os.environ.get("VERCEL"):
+        # Each function instance is short lived and the URL points at the provider's
+        # pooler: keep no client pool, and skip server-side prepared statements, which a
+        # transaction pooler may hand to another client.
+        return create_engine(url, poolclass=NullPool, connect_args={"prepare_threshold": None})
+    return create_engine(url, pool_pre_ping=True)
 
 
 engine = _make_engine()

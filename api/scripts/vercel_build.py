@@ -19,7 +19,12 @@ def main() -> None:
         print(f"VERCEL_ENV={environment}: skipping migrations.")
         return
 
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True)
+    # DDL goes through the direct connection when the provider offers one (Neon sets
+    # DATABASE_URL_UNPOOLED); the app itself keeps using the pooled DATABASE_URL.
+    env = dict(os.environ)
+    if env.get("DATABASE_URL_UNPOOLED"):
+        env["DATABASE_URL"] = env["DATABASE_URL_UNPOOLED"]
+    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, env=env)
 
     from sqlalchemy import func, select
 
