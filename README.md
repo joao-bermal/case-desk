@@ -6,7 +6,7 @@ Case management for a Brazilian law office. The secretary registers client compa
 
 **Design:** [docs/TDD.md](docs/TDD.md) covers the architecture, data model, authentication, the permission rules, the demo mode, deployment and testing.
 
-The interface is in Brazilian Portuguese because the domain is Brazilian (CNPJ, OAB, the legal vocabulary). Code and documentation are in English.
+The interface speaks Portuguese and English, with the same detection as [joaosantaniello.com](https://joaosantaniello.com): Portuguese for Portuguese-speaking browsers and countries, English otherwise, and an EN/PT switch that remembers the choice. The API answers its messages in the same language. The demo records stay in Portuguese because the office is Brazilian, and the English sign in page explains the local terms (CNPJ, OAB).
 
 ## From the 2022 version
 
@@ -23,7 +23,7 @@ Case Desk started in 2022 as my college project, under a name the course assigne
 | Credentials written in the source code | Settings from environment variables |
 | Create React App, Electron, Material UI v4 and v5 side by side | Next.js 16 (App Router, Server Actions) with MUI v9 and MUI X DataGrid Pro, and a typed API client generated from the OpenAPI schema |
 | Unpinned `requirements.txt` and deleted migrations | `uv` with a lockfile and Alembic migrations that the test suite runs down and up |
-| No tests | 117 pytest tests against a real Postgres |
+| No tests | 127 pytest tests against a real Postgres |
 
 ## Roles
 
@@ -50,7 +50,8 @@ Browser ──> Next.js (web/)            ──> FastAPI (api/)        ──> 
 1. The sign in form posts to a Next.js server action, which calls `POST /auth/login` and stores the returned token in an httpOnly, `SameSite=Lax` cookie. Browser code never sees the token.
 2. Pages are server components. They read the cookie and call the API with `Authorization: Bearer`, through a client typed from the API's OpenAPI schema.
 3. The API resolves the session, loads the user, and scopes every query to what that role may see. Forms and the DataGrid's inline edits send their changes through server actions, and the API answers validation errors as `{field: message}` in Portuguese, which the forms show next to each field and the grid shows in a snackbar.
-4. Invites and password resets email a single use link to `/nova-senha`. Locally, Mailpit catches the emails.
+4. Invites and password resets email a single use link to `/new-password`. Locally, Mailpit catches the emails.
+5. The language comes from a `cd-lang` cookie. On the first visit `proxy.ts` sets it from `Accept-Language` and the visitor's country, and every API call carries it as `Accept-Language`.
 
 ## Stack
 
@@ -65,11 +66,12 @@ Browser ──> Next.js (web/)            ──> FastAPI (api/)        ──> 
 ## Repository
 
 ```
-api/app/                 FastAPI app: models, schemas, routers, security, seed
+api/app/                 FastAPI app: models, schemas, routers, security, seed, i18n messages
 api/migrations/          Alembic migrations
 api/tests/               pytest suite, including the permission matrix
 api/scripts/             Vercel build step and the OpenAPI export
-web/src/app/             Next.js routes (Portuguese URLs: /processos, /empresas, /advogados)
+web/src/app/             Next.js routes: /cases, /companies, /lawyers, /account, /login
+web/src/content/         Interface copy in Portuguese and English
 web/src/components/      MUI building blocks: app shell, forms bound to server actions, grid toolbar
 web/src/actions/         Server actions that call the API
 web/src/lib/api/         Generated OpenAPI schema and types, typed client

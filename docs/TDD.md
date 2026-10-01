@@ -28,7 +28,7 @@ Browser ──> Next.js web app ──> FastAPI ──> Postgres
 
 - **The API owns every rule.** Authentication, authorization, validation and data integrity live in FastAPI and Postgres. The web app holds no business rules beyond showing or hiding what a role cannot use.
 - **Backend for frontend.** Only the Next.js server talks to the API. The browser gets HTML from server components and submits forms to server actions, so the session token never reaches browser JavaScript and the API needs no CORS.
-- **Interface.** MUI v9 with MUI X DataGrid Pro, themed in `web/src/theme.ts` (Portuguese locale for both). Pages are server components that fetch from the API and hand plain data to one client view per page; grid edits call server actions such as `patchCase`, which answer with the saved row or a message for the snackbar.
+- **Interface.** MUI v9 with MUI X DataGrid Pro, themed in `web/src/theme.ts` with one theme per language (pt-BR and en-US locales for both). Pages are server components that fetch from the API and hand plain data to one client view per page; grid edits call server actions such as `patchCase`, which answer with the saved row or a message for the snackbar.
 - **Typed contract.** `api/scripts/export_openapi.py` writes the OpenAPI schema into `web/src/lib/api/openapi.json`, and `openapi-typescript` turns it into `schema.d.ts`. The web app calls the API through `openapi-fetch`, so a renamed field breaks the web build instead of a page at runtime.
 
 ### Why FastAPI and Next.js instead of one framework
@@ -81,10 +81,18 @@ Rules beyond the role table in the README:
 ## 6. Validation and errors
 
 - Pydantic models in `app/schemas.py` validate and normalize input (trimmed names, lowercase emails, documents).
-- A custom handler turns validation errors into `{"detail": "Confira os campos destacados.", "errors": {"field": "message"}}` with Portuguese messages. Business rule conflicts on a field (a CNPJ already registered, an email in use) use the same shape with status 409 through `FieldError`.
+- A custom handler turns validation errors into `{"detail": "Confira os campos destacados.", "errors": {"field": "message"}}`, in the request language (section 7). Business rule conflicts on a field (a CNPJ already registered, an email in use) use the same shape with status 409 through `FieldError`.
 - The web app's `ActionForm` puts `errors[field]` under each field and keeps what the user typed after a failed submit.
 
-## 7. Demo mode
+## 7. Languages
+
+- **Detection** follows joaosantaniello.com: Portuguese when any `Accept-Language` entry is Portuguese, when `x-vercel-ip-country` is a Portuguese-speaking country (BR, PT, AO, MZ, CV, GW, ST, TL), for bots and link previews, and when nothing is known; English otherwise.
+- **Storage:** unlike the site, which serves English under `/en/`, the app keeps one URL per page in English (`/cases`, `/companies`) and stores the language in the `cd-lang` cookie for a year. `proxy.ts` sets it on the first visit, on the request too, so the first page already renders in that language. The EN/PT switch rewrites the cookie and refreshes the page in place.
+- **Web copy** lives in `web/src/content/*.ts` as `Record<Locale, ...>` objects. Server components read the language with `getLocale()`, client components with `useLocale()`. MUI and the DataGrid use their own pt-BR and en-US locales (one theme per language), and dates format with `Intl` in Brasília time.
+- **API messages** live in `api/app/i18n.py`. A middleware reads `Accept-Language` into a context variable, so validators and routers call `t(key)`; the default is Portuguese, so clients that send nothing get the original messages. The CSV export and the invite and reset emails follow the same language.
+- **Demo data** stays in Portuguese on purpose. The English sign in page and banner explain that the office is Brazilian and what CNPJ and OAB are.
+
+## 8. Demo mode
 
 Enabled with `DEMO_MODE=true` on both projects.
 
@@ -95,7 +103,7 @@ Enabled with `DEMO_MODE=true` on both projects.
 - The seed is fictional: invented names, emails on the reserved `.example` domain, no phone numbers, and CNPJs with a `DEMO` root in the alphanumeric format, which cannot belong to a real company.
 - The demo does not send email. Leave the SMTP settings empty there, otherwise a visitor could invite their own address and get a password based account.
 
-## 8. Deployment
+## 9. Deployment
 
 Two Vercel projects from the same repository, with root directories `api` and `web`.
 
@@ -106,7 +114,7 @@ Two Vercel projects from the same repository, with root directories `api` and `w
 
 Vercel Services (one project with both runtimes on a shared domain) would remove the second project and the cross project hop, but it is in beta; it is the natural next step once generally available.
 
-## 9. Testing
+## 10. Testing
 
 | Layer | What | How |
 |---|---|---|
@@ -116,12 +124,13 @@ Vercel Services (one project with both runtimes on a shared domain) would remove
 | Rules | Case creation and transfer, counts, search, CSV, company and lawyer rules | `tests/test_cases.py`, `tests/test_companies_and_lawyers.py` |
 | Demo | Off by default, account protection, caps, cron secret | `tests/test_demo.py` |
 | Validators | CNPJ (numeric and alphanumeric), phone, OAB | `tests/test_validators.py` |
+| Languages | Accept-Language parsing, every message in both languages, English validation, business errors and CSV | `tests/test_i18n.py` |
 | Web | Types, lint, production build | `npm run typecheck`, `npm run lint`, `npm run build` |
 | Bulk delete | `DELETE /cases?ids=...` for the secretary, skipping unknown ids | `tests/test_cases.py`, permission matrix |
 
 Tests run against Postgres, not SQLite, because the constraints, `ILIKE` and `TRUNCATE ... CASCADE` are part of the behaviour under test.
 
-## 10. Risks and trade-offs
+## 11. Risks and trade-offs
 
 - **Two hops per page.** Web server to API to database. Fine for this size; Services or a shared region keeps it low.
 - **Per account lockout only.** Someone can lock a known email for 15 minutes. A per IP limit at the edge (Vercel Firewall) is the fix.
